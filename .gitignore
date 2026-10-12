@@ -1,0 +1,15 @@
+# IntelliJ IDEA
+.idea/
+*.iml
+
+# Maven
+target/
+
+# Variables de entorno y credenciales locales
+.env
+.env.local
+.env.*.local
+
+# Archivos temporales
+*.log
+*.tmp
