@@ -40,6 +40,7 @@ jobs:
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         run: >
-          ./mvnw --batch-mode sonar:sonar
+          ./mvnw --batch-mode
+          org.sonarsource.scanner.maven:sonar-maven-plugin:5.5.0.6356:sonar
           -Dsonar.projectKey=prog2-portal-rocio_svc-catalogo
           -Dsonar.host.url=https://sonarcloud.io
