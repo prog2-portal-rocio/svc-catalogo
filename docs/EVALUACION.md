@@ -3,13 +3,13 @@
 
 > Documento **generado automáticamente** por la cátedra de Programación II (UM): RepoSense + análisis de calidad de **7 dimensiones**. **No editar a mano**: se regenera en cada evaluación.
 > Rama evaluada: `main`. Análisis **heurístico** (regex + métricas) + build: es una criba para orientar la revisión, **no una nota**. La **documentación** del repositorio no se evalúa.
-> Generado: 2026-10-17.
+> Generado: 2026-10-19.
 
 ## 1. Veredicto
 
 | Aspecto | Resultado |
 |---|---|
-| Índice de calidad | **54/100** |
+| Índice de calidad | **57/100** |
 | Tipo de repositorio | `backend` |
 | Build (`mvnw verify` / `gradlew check`) | OK |
 | Código (LOC) | 313 |
@@ -17,9 +17,10 @@
 | Clases | 8 |
 | Código dentro de clases (%POO) | 90% |
 | Funciones fuera de clases | 0 |
-| Duplicación | 23.3% |
+| Duplicación (puerta) | 0.0% |
+| Duplicación lógica | 0.0% |
+| Duplicación de boilerplate | 0.0% |
 | Cobertura | 95% |
-| Tope duro aplicado a D1 | `DUP>=15%` → D1 ≤ 50 |
 
 > Este informe **describe** lo que el análisis midió con los criterios ya establecidos de la materia. No es una nota.
 
@@ -30,9 +31,9 @@ Criterios de la cátedra (`CRITERIOS-CALIDAD.md`): **Aprobar** se juega con el p
 | Semáforo | Resultado |
 |---|---|
 | Aprobar (`estandar`) | **cumple** — 8/11 |
-| Destacar (`exigente`) | **no cumple** — 6/11 |
+| Destacar (`exigente`) | **no cumple** — 7/11 |
 
-**Para destacar, falta cumplir:** SOLID; Duplicación
+**Para destacar, falta cumplir:** SOLID
 
 ## 3. Autoría (RepoSense)
 
@@ -48,7 +49,7 @@ Cada dimensión indica **qué mide**, **por qué importa** y **tu resultado**. C
 
 | Dimensión | Peso | Puntaje |
 |:--|--:|--:|
-| **D1** Diseño OO, SOLID y patrones (20%) | 20% | 14 |
+| **D1** Diseño OO, SOLID y patrones (20%) | 20% | 29 |
 | **D2** Arquitectura hexagonal — backend (15%) | 15% | 45 |
 | **D3** Frontend KMP: MVVM y buenas prácticas (10%) | 10% | N/A |
 | **D4** Integración y contrato (10%) | 10% | 0 |
@@ -60,7 +61,7 @@ Cada dimensión indica **qué mide**, **por qué importa** y **tu resultado**. C
 
 - **Qué mide:** Métricas orientadas a objetos (clases, métodos, campos, cohesión, acoplamiento, herencia) y proxies de SOLID, más patrones de diseño.
 - **Por qué importa:** El eje de la materia es el buen uso de la POO y su arquitectura: un diseño con clases claras y poco acopladas es más fácil de entender, probar y cambiar.
-- **Tu resultado:** **14/100**
+- **Tu resultado:** **29/100**
 - **Para investigar la causa:**
     - ¿Se pensó el modelo de clases antes de codificar o se agrupó después?
     - ¿Qué clases concentran muchas responsabilidades a la vez?
@@ -114,9 +115,6 @@ El análisis encontró las siguientes señales (archivo, sin número de línea a
 - clase 'Categoria' con baja cohesión (0%) — `src/main/java/com/example/svccatalogo/catalogo/domain/model/Categoria.java`
 - clase 'Profesional' con baja cohesión (0%) — `src/main/java/com/example/svccatalogo/catalogo/domain/model/Profesional.java`
 
-**duplicación** (1)
-- duplicación de bloques: 23.3% del código
-
 **hexagonal** (2)
 - falta ports/in (hexagonal)
 - falta ports/out (hexagonal)
@@ -130,7 +128,7 @@ xychart-beta
     title "Índice de calidad a lo largo de los commits"
     x-axis ["dde650c", "166fe85", "9f95fbf", "8288b7a", "98aec9b"]
     y-axis "Índice" 0 --> 100
-    line [0, 15, 35, 40, 34]
+    line [0, 15, 35, 40, 37]
 ```
 
 | # | Fecha | Commit | Autor | LOC | Índice | %POO | Duplic. | Sueltas |
@@ -139,7 +137,7 @@ xychart-beta
 | 2 | 2026-09-10 | `166fe85` | Ing. Daniel Quinteros | 0 | 15 | 0% | 0.0% | 0 |
 | 3 | 2026-10-12 | `9f95fbf` | Pilar Rocío Portal Romano | 18 | 35 | 56% | 0.0% | 0 |
 | 4 | 2026-10-16 | `8288b7a` | Pilar Rocío Portal Romano | 18 | 40 | 56% | 0.0% | 0 |
-| 5 | 2026-10-17 | `98aec9b` | Ing. Daniel Quinteros | 313 | 34 | 90% | 23.3% | 0 |
+| 5 | 2026-10-17 | `98aec9b` | Ing. Daniel Quinteros | 313 | 37 | 90% | 0.0% | 0 |
 
 ---
 _Informe generado por la cátedra. Las dimensiones y umbrales corresponden a `calidad.py` (perfil `exigente`); el semáforo, a `CRITERIOS-CALIDAD.md`. La documentación del repositorio no se evalúa. Ante dudas, revisá el archivo señalado._
