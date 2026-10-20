@@ -1,15 +1,21 @@
-
 package com.example.svccatalogo.catalogo.infrastructure.persistence.entity;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import lombok.AccessLevel;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
 
 import java.time.Instant;
 
 @Entity
 @Table(name = "profesionales")
+@Getter
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
+@AllArgsConstructor
 public class ProfesionalEntity {
 
     @Id
@@ -32,27 +38,4 @@ public class ProfesionalEntity {
 
     @Column(name = "updated_at")
     private Instant updatedAt;
-
-    protected ProfesionalEntity() {
-    }
-
-    public ProfesionalEntity(Long id, Long categoryId, String firstName,
-                             String lastName, boolean enabled,
-                             Instant createdAt, Instant updatedAt) {
-        this.id = id;
-        this.categoryId = categoryId;
-        this.firstName = firstName;
-        this.lastName = lastName;
-        this.enabled = enabled;
-        this.createdAt = createdAt;
-        this.updatedAt = updatedAt;
-    }
-
-    public Long getId() { return id; }
-    public Long getCategoryId() { return categoryId; }
-    public String getFirstName() { return firstName; }
-    public String getLastName() { return lastName; }
-    public boolean isEnabled() { return enabled; }
-    public Instant getCreatedAt() { return createdAt; }
-    public Instant getUpdatedAt() { return updatedAt; }
 }

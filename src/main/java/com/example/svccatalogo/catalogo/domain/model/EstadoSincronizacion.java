@@ -1,7 +1,10 @@
 package com.example.svccatalogo.catalogo.domain.model;
 
+import lombok.Getter;
+
 import java.time.Instant;
 
+@Getter
 public class EstadoSincronizacion {
 
     private final Long appliedVersion;
@@ -34,25 +37,5 @@ public class EstadoSincronizacion {
         this.lastAttemptAt = lastAttemptAt;
         this.phase = phase;
         this.safeDiagnostic = safeDiagnostic;
-    }
-
-    public Long getAppliedVersion() {
-        return appliedVersion;
-    }
-
-    public Instant getAppliedAt() {
-        return appliedAt;
-    }
-
-    public Instant getLastAttemptAt() {
-        return lastAttemptAt;
-    }
-
-    public String getPhase() {
-        return phase;
-    }
-
-    public String getSafeDiagnostic() {
-        return safeDiagnostic;
     }
 }

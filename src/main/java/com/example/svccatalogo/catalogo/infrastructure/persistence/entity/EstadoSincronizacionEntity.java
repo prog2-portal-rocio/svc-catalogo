@@ -4,11 +4,18 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import lombok.AccessLevel;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
 
 import java.time.Instant;
 
 @Entity
 @Table(name = "estado_sincronizacion")
+@Getter
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
+@AllArgsConstructor
 public class EstadoSincronizacionEntity {
 
     @Id
@@ -29,46 +36,4 @@ public class EstadoSincronizacionEntity {
     @Column(name = "safe_diagnostic", length = 255)
     private String safeDiagnostic;
 
-    protected EstadoSincronizacionEntity() {
-    }
-
-    public EstadoSincronizacionEntity(
-            Long id,
-            Long appliedVersion,
-            Instant appliedAt,
-            Instant lastAttemptAt,
-            String phase,
-            String safeDiagnostic) {
-
-        this.id = id;
-        this.appliedVersion = appliedVersion;
-        this.appliedAt = appliedAt;
-        this.lastAttemptAt = lastAttemptAt;
-        this.phase = phase;
-        this.safeDiagnostic = safeDiagnostic;
-    }
-
-    public Long getId() {
-        return id;
-    }
-
-    public Long getAppliedVersion() {
-        return appliedVersion;
-    }
-
-    public Instant getAppliedAt() {
-        return appliedAt;
-    }
-
-    public Instant getLastAttemptAt() {
-        return lastAttemptAt;
-    }
-
-    public String getPhase() {
-        return phase;
-    }
-
-    public String getSafeDiagnostic() {
-        return safeDiagnostic;
-    }
 }

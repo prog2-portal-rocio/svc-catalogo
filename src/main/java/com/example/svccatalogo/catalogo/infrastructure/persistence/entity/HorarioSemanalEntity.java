@@ -6,6 +6,10 @@ import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import lombok.AccessLevel;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
 
 import java.time.DayOfWeek;
 import java.time.Instant;
@@ -13,6 +17,9 @@ import java.time.LocalTime;
 
 @Entity
 @Table(name = "horarios_semanales")
+@Getter
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
+@AllArgsConstructor
 public class HorarioSemanalEntity {
 
     @Id
@@ -42,33 +49,4 @@ public class HorarioSemanalEntity {
 
     @Column(name = "updated_at")
     private Instant updatedAt;
-
-    protected HorarioSemanalEntity() {
-    }
-
-    public HorarioSemanalEntity(Long id, Long professionalId,
-                                DayOfWeek dayOfWeek, LocalTime startTime,
-                                LocalTime endTime, Integer slotDurationMinutes,
-                                boolean enabled, Instant createdAt,
-                                Instant updatedAt) {
-        this.id = id;
-        this.professionalId = professionalId;
-        this.dayOfWeek = dayOfWeek;
-        this.startTime = startTime;
-        this.endTime = endTime;
-        this.slotDurationMinutes = slotDurationMinutes;
-        this.enabled = enabled;
-        this.createdAt = createdAt;
-        this.updatedAt = updatedAt;
-    }
-
-    public Long getId() { return id; }
-    public Long getProfessionalId() { return professionalId; }
-    public DayOfWeek getDayOfWeek() { return dayOfWeek; }
-    public LocalTime getStartTime() { return startTime; }
-    public LocalTime getEndTime() { return endTime; }
-    public Integer getSlotDurationMinutes() { return slotDurationMinutes; }
-    public boolean isEnabled() { return enabled; }
-    public Instant getCreatedAt() { return createdAt; }
-    public Instant getUpdatedAt() { return updatedAt; }
 }
