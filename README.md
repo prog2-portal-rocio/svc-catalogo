@@ -16,22 +16,35 @@ El servicio de catálogo tiene como finalidad proporcionar información de profe
 Su responsabilidad principal es mantener una copia local de la información del catálogo, permitiendo realizar consultas sin depender constantemente del servicio central.
 
 Para mantener los datos actualizados, el servicio contempla mecanismos de sincronización inicial y actualización incremental.
+
 ## Tecnologías
 
-- Java 25
-- Spring Boot 4.1.1
-- Maven
-- Spring Web MVC
-- Lombok
+- Java 25 (Amazon Corretto).
+- Spring Boot 4.1.1.
+- Spring Web MVC.
+- Spring Data JPA.
+- PostgreSQL 18.
+- Flyway.
+- Docker Compose.
+- Testcontainers.
+- Maven y JaCoCo.
+- Lombok.
 
 ## Requisitos
 
 - JDK 25.
-El proyecto incluye Maven Wrapper, por lo que no es necesario instalar Maven por separado.
+- Docker Engine y Docker Compose.
+
+El proyecto incluye Maven Wrapper, por lo que no es
+necesario instalar Maven por separado.
 
 ## Ejecución
 
-Desde la raíz del proyecto:
+Para ejecutar el servicio por primera vez, seguir las
+instrucciones de la sección **Persistencia local**.
+
+Una vez configurada la base de datos y cargadas las variables
+de entorno, iniciar la aplicación con:
 
 ```bash
 ./mvnw spring-boot:run
@@ -58,6 +71,95 @@ Para compilar y generar el archivo JAR:
 Los archivos generados se guardan en `target/`.
 
 En Windows, utilizar `mvnw.cmd` en lugar de `./mvnw`.
+
+
+## Persistencia local
+
+El servicio utiliza PostgreSQL 18 para mantener una copia local
+del catálogo y registrar el estado de sincronización.
+
+La persistencia se implementa mediante Spring Data JPA y las
+migraciones de la base de datos se gestionan con Flyway.
+
+### Requisitos adicionales
+
+- Docker Engine y Docker Compose.
+- JDK 25.
+
+### Configuración de la base de datos
+
+1. Crear el archivo `.env` a partir del ejemplo:
+
+   ```bash
+   cp .env.example .env
+   ```
+
+2. Editar `.env` y configurar una contraseña en
+   `CATALOGO_DB_PASSWORD`.
+
+   El archivo `.env` está excluido de Git y no debe subirse
+   al repositorio.
+
+3. Iniciar PostgreSQL:
+
+   ```bash
+   docker compose up -d
+   ```
+
+4. Comprobar el estado del contenedor:
+
+   ```bash
+   docker compose ps
+   ```
+
+   El servicio `postgres` debe aparecer como `healthy`.
+
+### Ejecución de la aplicación
+
+Cargar las variables de entorno en la terminal:
+
+```bash
+set -a
+source .env
+set +a
+```
+
+Iniciar Spring Boot:
+
+```bash
+./mvnw spring-boot:run
+```
+
+Flyway ejecutará automáticamente las migraciones pendientes
+al iniciar la aplicación.
+
+### Pruebas
+
+Para ejecutar todas las pruebas y generar el informe de cobertura:
+
+```bash
+./mvnw clean verify
+```
+
+Las pruebas de integración utilizan Testcontainers para iniciar
+una instancia temporal de PostgreSQL. Por lo tanto, requieren
+Docker disponible, pero no necesitan utilizar la base de datos
+local del archivo `compose.yaml`.
+
+### Sincronización del catálogo
+
+La persistencia contempla:
+
+- Categorías.
+- Profesionales.
+- Horarios semanales.
+- Estado de sincronización y versión aplicada.
+
+El reemplazo de un snapshot se realiza dentro de una transacción,
+respetando las relaciones entre las entidades.
+
+Si una operación falla, la transacción revierte sus cambios.
+Las versiones iguales o anteriores a la última aplicada se ignoran.
 
 ## Arquitectura
 
