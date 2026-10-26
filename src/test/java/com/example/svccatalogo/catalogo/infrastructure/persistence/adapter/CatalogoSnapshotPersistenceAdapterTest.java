@@ -139,7 +139,6 @@ class CatalogoSnapshotPersistenceAdapterTest {
     void revierteCambiosSiFallaLaSincronizacion() {
         Instant fecha = Instant.parse("2026-01-15T10:00:00Z");
 
-        // Primera sincronización: versión 1 válida.
         Categoria categoriaOriginal = new Categoria(
                 1L, "Peluquería", null,
                 true, fecha, fecha
@@ -255,7 +254,6 @@ class CatalogoSnapshotPersistenceAdapterTest {
                 true, fecha, fecha
         );
 
-        // Aplicamos correctamente la versión 5.
         snapshotPort.reemplazarCatalogo(
                 List.of(categoriaOriginal),
                 List.of(),
@@ -268,7 +266,6 @@ class CatalogoSnapshotPersistenceAdapterTest {
                 true, fecha, fecha
         );
 
-        // Intentamos aplicar nuevamente la versión 5.
         snapshotPort.reemplazarCatalogo(
                 List.of(categoriaDiferente),
                 List.of(),
@@ -276,7 +273,6 @@ class CatalogoSnapshotPersistenceAdapterTest {
                 5L
         );
 
-        // Intentamos aplicar una versión anterior.
         snapshotPort.reemplazarCatalogo(
                 List.of(categoriaDiferente),
                 List.of(),
@@ -319,7 +315,6 @@ class CatalogoSnapshotPersistenceAdapterTest {
                 30, true, fecha, fecha
         );
 
-        // Primero aplicamos un catálogo con datos.
         snapshotPort.reemplazarCatalogo(
                 List.of(categoria),
                 List.of(profesional),
@@ -327,7 +322,6 @@ class CatalogoSnapshotPersistenceAdapterTest {
                 1L
         );
 
-        // Luego recibimos una nueva versión vacía.
         snapshotPort.reemplazarCatalogo(
                 List.of(),
                 List.of(),
@@ -335,12 +329,10 @@ class CatalogoSnapshotPersistenceAdapterTest {
                 2L
         );
 
-        // Todas las tablas del catálogo deben quedar vacías.
         assertTrue(categoriaRepository.findAll().isEmpty());
         assertTrue(profesionalRepository.findAll().isEmpty());
         assertTrue(horarioRepository.findAll().isEmpty());
 
-        // La nueva versión debe quedar aplicada.
         assertEquals(
                 2L,
                 estadoRepository.obtenerEstado().getAppliedVersion()
@@ -388,10 +380,8 @@ class CatalogoSnapshotPersistenceAdapterTest {
                 return null;
             });
 
-            // Permitimos que ambos hilos comiencen.
             inicio.countDown();
 
-            // Esperamos su finalización y detectamos excepciones.
             tareaV10.get(30, TimeUnit.SECONDS);
             tareaV11.get(30, TimeUnit.SECONDS);
         }
@@ -402,7 +392,6 @@ class CatalogoSnapshotPersistenceAdapterTest {
                 estadoRepository.obtenerEstado().getAppliedVersion()
         );
 
-        // Deben permanecer únicamente los datos de la versión 11.
         assertEquals(1, categoriaRepository.findAll().size());
         assertTrue(categoriaRepository.findById(11L).isPresent());
         assertTrue(categoriaRepository.findById(10L).isEmpty());
