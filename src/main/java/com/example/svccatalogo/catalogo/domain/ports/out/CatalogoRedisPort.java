@@ -1,5 +1,7 @@
 package com.example.svccatalogo.catalogo.domain.ports.out;
 
+import com.example.svccatalogo.catalogo.domain.model.CambiosCatalogo;
+
 import java.util.Optional;
 
 public interface CatalogoRedisPort {
@@ -8,5 +10,5 @@ public interface CatalogoRedisPort {
 
     long obtenerVersionMasAntiguaDisponible();
 
-    Optional<String> obtenerCambios(long version);
+    Optional<CambiosCatalogo> obtenerCambios(long version);
 }

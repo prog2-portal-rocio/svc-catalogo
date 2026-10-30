@@ -4,8 +4,12 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
-
+import tools.jackson.databind.json.JsonMapper;
+import com.example.svccatalogo.catalogo.domain.model.CambiosCatalogo;
+import java.util.List;
+import org.springframework.data.redis.RedisConnectionFailureException;
 import java.util.Optional;
+import com.example.svccatalogo.catalogo.application.exception.FuenteCatalogoNoDisponibleException;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
@@ -23,7 +27,10 @@ class CatalogoRedisAdapterTest {
 
         when(redisTemplate.opsForValue()).thenReturn(operaciones);
 
-        adapter = new CatalogoRedisAdapter(redisTemplate);
+        adapter = new CatalogoRedisAdapter(
+                redisTemplate,
+                JsonMapper.builder().build()
+        );
     }
 
     @Test
@@ -62,27 +69,60 @@ class CatalogoRedisAdapterTest {
         when(operaciones.get("catedra:sync:changes:5"))
                 .thenReturn(null);
 
-        Optional<String> cambios = adapter.obtenerCambios(5L);
+        Optional<CambiosCatalogo> cambios = adapter.obtenerCambios(5L);
 
         assertTrue(cambios.isEmpty());
     }
+
 
     @Test
     void debeObtenerCambiosDeUnaVersion() {
         String json = """
             {
               "version": 7,
-              "categoryIds": [1, 2]
+              "changes": {
+                "professionalCategories": [1, 2],
+                "professionals": [15],
+                "weeklySchedules": [21, 22]
+              }
             }
             """;
 
         when(operaciones.get("catedra:sync:changes:7"))
                 .thenReturn(json);
 
-        Optional<String> cambios = adapter.obtenerCambios(7L);
+        Optional<CambiosCatalogo> cambios = adapter.obtenerCambios(7L);
 
         assertTrue(cambios.isPresent());
-        assertEquals(json, cambios.get());
+
+        CambiosCatalogo resultado = cambios.orElseThrow();
+
+        assertEquals(7L, resultado.version());
+        assertEquals(List.of(1L, 2L), resultado.categorias());
+        assertEquals(List.of(15L), resultado.profesionales());
+        assertEquals(List.of(21L, 22L), resultado.horariosSemanales());
+    }
+
+    @Test
+    void debeRechazarCambiosDeOtraVersion() {
+        String json = """
+            {
+              "version": 5,
+              "changes": {
+                "professionalCategories": [],
+                "professionals": [],
+                "weeklySchedules": []
+              }
+            }
+            """;
+
+        when(operaciones.get("catedra:sync:changes:7"))
+                .thenReturn(json);
+
+        assertThrows(
+                IllegalStateException.class,
+                () -> adapter.obtenerCambios(7L)
+        );
     }
 
     @Test
@@ -93,5 +133,95 @@ class CatalogoRedisAdapterTest {
         );
 
         verify(operaciones, never()).get(anyString());
+    }
+
+    @Test
+    void debeRechazarCambiosConJsonInvalido() {
+        when(operaciones.get("catedra:sync:changes:7"))
+                .thenReturn("esto no es JSON");
+
+        assertThrows(
+                IllegalStateException.class,
+                () -> adapter.obtenerCambios(7L)
+        );
+    }
+
+    @Test
+    void debeRechazarCambiosSinEstructuraChanges() {
+        String json = """
+            {
+              "version": 7
+            }
+            """;
+
+        when(operaciones.get("catedra:sync:changes:7"))
+                .thenReturn(json);
+
+        assertThrows(
+                IllegalStateException.class,
+                () -> adapter.obtenerCambios(7L)
+        );
+    }
+
+    @Test
+    void debeRechazarCambiosConListaInvalida() {
+        String json = """
+            {
+              "version": 7,
+              "changes": {
+                "professionalCategories": [],
+                "professionals": "15",
+                "weeklySchedules": []
+              }
+            }
+            """;
+
+        when(operaciones.get("catedra:sync:changes:7"))
+                .thenReturn(json);
+
+        assertThrows(
+                IllegalStateException.class,
+                () -> adapter.obtenerCambios(7L)
+        );
+    }
+
+    @Test
+    void debeRechazarCambiosConIdentificadoresInvalidos() {
+        String json = """
+            {
+              "version": 7,
+              "changes": {
+                "professionalCategories": [],
+                "professionals": [{"id": 15}],
+                "weeklySchedules": []
+              }
+            }
+            """;
+
+        when(operaciones.get("catedra:sync:changes:7"))
+                .thenReturn(json);
+
+        assertThrows(
+                IllegalStateException.class,
+                () -> adapter.obtenerCambios(7L)
+        );
+    }
+
+    @Test
+    void debeTraducirErrorCuandoRedisNoEstaDisponible() {
+        when(operaciones.get("catedra:sync:current-version"))
+                .thenThrow(new RedisConnectionFailureException(
+                        "No se pudo conectar a Redis"
+                ));
+
+        FuenteCatalogoNoDisponibleException excepcion = assertThrows(
+                FuenteCatalogoNoDisponibleException.class,
+                () -> adapter.obtenerVersionActual()
+        );
+
+        assertInstanceOf(
+                RedisConnectionFailureException.class,
+                excepcion.getCause()
+        );
     }
 }
