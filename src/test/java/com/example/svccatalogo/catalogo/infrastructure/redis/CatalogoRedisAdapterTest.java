@@ -10,6 +10,9 @@ import java.util.List;
 import org.springframework.data.redis.RedisConnectionFailureException;
 import java.util.Optional;
 import com.example.svccatalogo.catalogo.application.exception.FuenteCatalogoNoDisponibleException;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
+import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
@@ -104,28 +107,6 @@ class CatalogoRedisAdapterTest {
     }
 
     @Test
-    void debeRechazarCambiosDeOtraVersion() {
-        String json = """
-            {
-              "version": 5,
-              "changes": {
-                "professionalCategories": [],
-                "professionals": [],
-                "weeklySchedules": []
-              }
-            }
-            """;
-
-        when(operaciones.get("catedra:sync:changes:7"))
-                .thenReturn(json);
-
-        assertThrows(
-                IllegalStateException.class,
-                () -> adapter.obtenerCambios(7L)
-        );
-    }
-
-    @Test
     void debeRechazarVersionNegativaAlConsultarCambios() {
         assertThrows(
                 IllegalArgumentException.class,
@@ -133,78 +114,6 @@ class CatalogoRedisAdapterTest {
         );
 
         verify(operaciones, never()).get(anyString());
-    }
-
-    @Test
-    void debeRechazarCambiosConJsonInvalido() {
-        when(operaciones.get("catedra:sync:changes:7"))
-                .thenReturn("esto no es JSON");
-
-        assertThrows(
-                IllegalStateException.class,
-                () -> adapter.obtenerCambios(7L)
-        );
-    }
-
-    @Test
-    void debeRechazarCambiosSinEstructuraChanges() {
-        String json = """
-            {
-              "version": 7
-            }
-            """;
-
-        when(operaciones.get("catedra:sync:changes:7"))
-                .thenReturn(json);
-
-        assertThrows(
-                IllegalStateException.class,
-                () -> adapter.obtenerCambios(7L)
-        );
-    }
-
-    @Test
-    void debeRechazarCambiosConListaInvalida() {
-        String json = """
-            {
-              "version": 7,
-              "changes": {
-                "professionalCategories": [],
-                "professionals": "15",
-                "weeklySchedules": []
-              }
-            }
-            """;
-
-        when(operaciones.get("catedra:sync:changes:7"))
-                .thenReturn(json);
-
-        assertThrows(
-                IllegalStateException.class,
-                () -> adapter.obtenerCambios(7L)
-        );
-    }
-
-    @Test
-    void debeRechazarCambiosConIdentificadoresInvalidos() {
-        String json = """
-            {
-              "version": 7,
-              "changes": {
-                "professionalCategories": [],
-                "professionals": [{"id": 15}],
-                "weeklySchedules": []
-              }
-            }
-            """;
-
-        when(operaciones.get("catedra:sync:changes:7"))
-                .thenReturn(json);
-
-        assertThrows(
-                IllegalStateException.class,
-                () -> adapter.obtenerCambios(7L)
-        );
     }
 
     @Test
@@ -222,6 +131,59 @@ class CatalogoRedisAdapterTest {
         assertInstanceOf(
                 RedisConnectionFailureException.class,
                 excepcion.getCause()
+        );
+    }
+
+    @ParameterizedTest
+    @MethodSource("jsonInvalidos")
+    void debeRechazarCambiosInvalidos(String json) {
+        when(operaciones.get("catedra:sync:changes:7"))
+                .thenReturn(json);
+
+        assertThrows(
+                IllegalStateException.class,
+                () -> adapter.obtenerCambios(7L)
+        );
+    }
+
+    private static Stream<String> jsonInvalidos() {
+        return Stream.of(
+                """
+                {
+                  "version": 5,
+                  "changes": {
+                    "professionalCategories": [],
+                    "professionals": [],
+                    "weeklySchedules": []
+                  }
+                }
+                """,
+                "esto no es JSON",
+                """
+                {
+                  "version": 7
+                }
+                """,
+                """
+                {
+                  "version": 7,
+                  "changes": {
+                    "professionalCategories": [],
+                    "professionals": "15",
+                    "weeklySchedules": []
+                  }
+                }
+                """,
+                """
+                {
+                  "version": 7,
+                  "changes": {
+                    "professionalCategories": [],
+                    "professionals": [{"id": 15}],
+                    "weeklySchedules": []
+                  }
+                }
+                """
         );
     }
 }

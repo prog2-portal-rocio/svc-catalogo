@@ -92,31 +92,7 @@ public class CatalogoRedisAdapter implements CatalogoRedisPort {
                 );
             }
 
-            String[] campos = {
-                    "professionalCategories",
-                    "professionals",
-                    "weeklySchedules"
-            };
-
-            for (String campo : campos) {
-                JsonNode lista = detalleCambios.path(campo);
-
-                if (!lista.isArray()) {
-                    throw new IllegalStateException(
-                            "La lista de cambios no es valida: " + campo
-                    );
-                }
-
-                for (JsonNode identificador : lista) {
-                    if (!identificador.isIntegralNumber()
-                            || !identificador.canConvertToLong()
-                            || identificador.longValue() < 0) {
-                        throw new IllegalStateException(
-                                "Identificador invalido en la lista: " + campo
-                        );
-                    }
-                }
-            }
+            validarListasCambios(detalleCambios);
 
             CambiosCatalogo resultado = new CambiosCatalogo(
                     version,
@@ -131,6 +107,34 @@ public class CatalogoRedisAdapter implements CatalogoRedisPort {
             throw new IllegalStateException(
                     "Los cambios de Redis no contienen un JSON valido", e
             );
+        }
+    }
+
+    private void validarListasCambios(JsonNode detalleCambios) {
+        String[] campos = {
+                "professionalCategories",
+                "professionals",
+                "weeklySchedules"
+        };
+
+        for (String campo : campos) {
+            JsonNode lista = detalleCambios.path(campo);
+
+            if (!lista.isArray()) {
+                throw new IllegalStateException(
+                        "La lista de cambios no es valida: " + campo
+                );
+            }
+
+            for (JsonNode identificador : lista) {
+                if (!identificador.isIntegralNumber()
+                        || !identificador.canConvertToLong()
+                        || identificador.longValue() < 0) {
+                    throw new IllegalStateException(
+                            "Identificador invalido en la lista: " + campo
+                    );
+                }
+            }
         }
     }
 
