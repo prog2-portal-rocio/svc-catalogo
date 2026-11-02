@@ -23,6 +23,10 @@ import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.TestMethodOrder;
 import org.junit.jupiter.api.MethodOrderer;
 import org.springframework.test.annotation.DirtiesContext;
+import org.apache.kafka.clients.admin.AdminClient;
+import org.apache.kafka.clients.admin.AdminClientConfig;
+import org.apache.kafka.common.TopicPartition;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -112,10 +116,11 @@ class CatalogoKafkaConsumerIntegrationTest {
         }
     }
 
+
     @Test
     @Order(2)
     @DirtiesContext(methodMode = DirtiesContext.MethodMode.AFTER_METHOD)
-    void debeDetenerConsumidorSiFallaProcesamiento() throws Exception {
+    void debeReprocesarEventoFallidoAlReiniciarConsumidor() throws Exception {
 
         var contenedor = listenerRegistry
                 .getListenerContainers()
@@ -127,8 +132,9 @@ class CatalogoKafkaConsumerIntegrationTest {
         NotificacionCatalogo notificacion =
                 new NotificacionCatalogo("evento-kafka-error-1", 8L);
 
-        // Simulamos un fallo de sincronizacion.
+        // El primer intento falla, pero el segundo funciona.
         doThrow(new IllegalStateException("Error de sincronizacion"))
+                .doNothing()
                 .when(procesarPort)
                 .procesar(notificacion);
 
@@ -143,17 +149,20 @@ class CatalogoKafkaConsumerIntegrationTest {
             }
             """;
 
-        kafkaTemplate.send(
+        // Publica el evento una sola vez.
+        var resultadoEnvio = kafkaTemplate.send(
                 "catalogo-prueba",
                 "8",
                 mensaje
         ).get(15, TimeUnit.SECONDS);
 
-        // Confirmo que Kafka entrego el evento.
+        long offsetEvento = resultadoEnvio.getRecordMetadata().offset();
+
+        // Primera entrega: falla el procesamiento.
         verify(procesarPort, timeout(20000))
                 .procesar(notificacion);
 
-        // Espero a que el manejador de errores detenga el consumidor.
+        // Espera a que el consumidor se detenga.
         long limite = System.nanoTime()
                 + TimeUnit.SECONDS.toNanos(15);
 
@@ -164,7 +173,84 @@ class CatalogoKafkaConsumerIntegrationTest {
 
         assertFalse(
                 contenedor.isRunning(),
-                "El consumidor deberia detenerse ante el error"
+                "El consumidor deberia detenerse tras el primer error"
         );
+        long offsetEsperadoDespuesDelExito = offsetEvento + 1;
+
+        try (AdminClient admin = AdminClient.create(Map.of(
+                AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG,
+                kafka.getBootstrapServers()
+        ))) {
+            TopicPartition particion =
+                    new TopicPartition("catalogo-prueba", 0);
+
+            var offsets = admin.listConsumerGroupOffsets(
+                            "catalogo-integracion-test"
+                    ).partitionsToOffsetAndMetadata()
+                    .get(10, TimeUnit.SECONDS);
+
+            var metadata = offsets.get(particion);
+
+            assertTrue(
+                    metadata == null
+                            || metadata.offset() < offsetEsperadoDespuesDelExito,
+                    "No debe confirmarse el offset del evento fallido"
+            );
+        }
+
+        // Reinicia el consumidor.
+        contenedor.start();
+
+        ContainerTestUtils.waitForAssignment(contenedor, 1);
+
+        // Kafka debe entregar nuevamente el mismo evento.
+        verify(procesarPort, timeout(20000).times(2))
+                .procesar(notificacion);
+
+        assertTrue(
+                contenedor.isRunning(),
+                "El consumidor deberia seguir funcionando tras recuperarse"
+        );
+
+        try (AdminClient admin = AdminClient.create(Map.of(
+                AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG,
+                kafka.getBootstrapServers()
+        ))) {
+            TopicPartition particion =
+                    new TopicPartition("catalogo-prueba", 0);
+
+            long offsetEsperado = offsetEvento + 1;
+
+            Long offsetConfirmado = null;
+
+            long limiteConfirmacion = System.nanoTime()
+                    + TimeUnit.SECONDS.toNanos(15);
+
+            while (System.nanoTime() < limiteConfirmacion) {
+
+                var offsets = admin.listConsumerGroupOffsets(
+                                "catalogo-integracion-test"
+                        ).partitionsToOffsetAndMetadata()
+                        .get(10, TimeUnit.SECONDS);
+
+                var metadata = offsets.get(particion);
+
+                if (metadata != null) {
+                    offsetConfirmado = metadata.offset();
+                }
+
+                if (Long.valueOf(offsetEsperado).equals(offsetConfirmado)) {
+                    break;
+                }
+
+                Thread.sleep(100);
+            }
+
+            assertEquals(
+                    Long.valueOf(offsetEsperado),
+                    offsetConfirmado,
+                    "Kafka debe confirmar el offset tras procesar exitosamente"
+            );
+        }
     }
 }
