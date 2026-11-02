@@ -275,36 +275,30 @@ class CatalogoKafkaConsumerIntegrationTest {
 
             long offsetEsperado = offsetEvento + 1;
 
-            Long offsetConfirmado = null;
 
-            long limiteConfirmacion = System.nanoTime()
-                    + TimeUnit.SECONDS.toNanos(15);
+            await()
+                    .atMost(15, TimeUnit.SECONDS)
+                    .untilAsserted(() -> {
+                        var offsets = admin.listConsumerGroupOffsets(
+                                        "catalogo-integracion-test"
+                                ).partitionsToOffsetAndMetadata()
+                                .get(10, TimeUnit.SECONDS);
 
-            while (System.nanoTime() < limiteConfirmacion) {
+                        var metadata = offsets.get(particion);
 
-                var offsets = admin.listConsumerGroupOffsets(
-                                "catalogo-integracion-test"
-                        ).partitionsToOffsetAndMetadata()
-                        .get(10, TimeUnit.SECONDS);
+                        assertNotNull(
+                                metadata,
+                                "Kafka debe registrar el offset del consumidor"
+                        );
 
-                var metadata = offsets.get(particion);
+                        assertEquals(
+                                offsetEsperado,
+                                metadata.offset(),
+                                "Kafka debe confirmar el offset tras procesar exitosamente"
+                        );
+                    });
 
-                if (metadata != null) {
-                    offsetConfirmado = metadata.offset();
-                }
 
-                if (Long.valueOf(offsetEsperado).equals(offsetConfirmado)) {
-                    break;
-                }
-
-                Thread.sleep(100);
-            }
-
-            assertEquals(
-                    Long.valueOf(offsetEsperado),
-                    offsetConfirmado,
-                    "Kafka debe confirmar el offset tras procesar exitosamente"
-            );
         }
     }
 }

@@ -125,12 +125,10 @@ class ProcesarNotificacionCatalogoIntegrationTest {
     }
 
     private long cantidadEventosProcesados() {
-        Long cantidad = jdbcTemplate.queryForObject(
+        return jdbcTemplate.queryForObject(
                 "SELECT COUNT(*) FROM eventos_catalogo_procesados",
                 Long.class
         );
-
-        return cantidad;
     }
 
     private Long versionAplicada() {

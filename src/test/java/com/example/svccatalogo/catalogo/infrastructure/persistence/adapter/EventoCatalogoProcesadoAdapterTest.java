@@ -62,9 +62,12 @@ class EventoCatalogoProcesadoAdapterTest {
 
     @Test
     void debeRechazarIdentificadorDemasiadoLargo() {
+
+        String identificadorLargo = "a".repeat(256);
+
         assertThrows(
                 IllegalArgumentException.class,
-                () -> adapter.registrarSiNoExiste("a".repeat(256), 7L)
+                () -> adapter.registrarSiNoExiste(identificadorLargo, 7L)
         );
 
         verifyNoInteractions(repository);
