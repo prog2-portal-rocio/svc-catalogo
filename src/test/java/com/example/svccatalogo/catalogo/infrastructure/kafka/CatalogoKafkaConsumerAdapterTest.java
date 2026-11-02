@@ -79,12 +79,12 @@ class CatalogoKafkaConsumerAdapterTest {
                 .when(procesarPort)
                 .procesar(any(NotificacionCatalogo.class));
 
+        ConsumerRecord<String, String> registroKafka =
+                registro(MENSAJE_VALIDO);
+
         assertThrows(
                 IllegalStateException.class,
-                () -> adapter.consumir(
-                        registro(MENSAJE_VALIDO),
-                        acknowledgment
-                )
+                () -> adapter.consumir(registroKafka, acknowledgment)
         );
 
         verify(acknowledgment, never()).acknowledge();
@@ -115,12 +115,12 @@ class CatalogoKafkaConsumerAdapterTest {
             String descripcion,
             String mensaje) {
 
+        ConsumerRecord<String, String> registroKafka =
+                registro(mensaje);
+
         assertThrows(
                 IllegalArgumentException.class,
-                () -> adapter.consumir(
-                        registro(mensaje),
-                        acknowledgment
-                )
+                () -> adapter.consumir(registroKafka, acknowledgment)
         );
 
         verifyNoInteractions(procesarPort, acknowledgment);

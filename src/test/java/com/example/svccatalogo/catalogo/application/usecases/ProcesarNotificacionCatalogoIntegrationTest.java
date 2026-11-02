@@ -103,11 +103,12 @@ class ProcesarNotificacionCatalogoIntegrationTest {
                         "Error al obtener el snapshot"
                 ));
 
+        NotificacionCatalogo notificacion =
+                new NotificacionCatalogo("evento-123", 7L);
+
         assertThrows(
                 IllegalStateException.class,
-                () -> procesarPort.procesar(
-                        new NotificacionCatalogo("evento-123", 7L)
-                )
+                () -> procesarPort.procesar(notificacion)
         );
 
         assertEquals(0, cantidadEventosProcesados());

@@ -92,11 +92,12 @@ class ProcesarNotificacionCatalogoServiceTest {
         doThrow(new IllegalStateException("Error de sincronizacion"))
                 .when(sincronizarPort).sincronizarCatalogo();
 
+        NotificacionCatalogo notificacion =
+                new NotificacionCatalogo("evento-123", 7L);
+
         assertThrows(
                 IllegalStateException.class,
-                () -> service.procesar(
-                        new NotificacionCatalogo("evento-123", 7L)
-                )
+                () -> service.procesar(notificacion)
         );
     }
 
@@ -108,11 +109,12 @@ class ProcesarNotificacionCatalogoServiceTest {
         when(estadoPort.consultarEstado())
                 .thenReturn(estado(5L), estado(6L));
 
+        NotificacionCatalogo notificacion =
+                new NotificacionCatalogo("evento-123", 7L);
+
         assertThrows(
                 IllegalStateException.class,
-                () -> service.procesar(
-                        new NotificacionCatalogo("evento-123", 7L)
-                )
+                () -> service.procesar(notificacion)
         );
 
         verify(sincronizarPort).sincronizarCatalogo();

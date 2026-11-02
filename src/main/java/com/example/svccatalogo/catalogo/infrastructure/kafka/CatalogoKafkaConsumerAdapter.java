@@ -110,13 +110,7 @@ public class CatalogoKafkaConsumerAdapter {
                 );
             }
 
-            try {
-                Instant.parse(fecha.asString());
-            } catch (DateTimeParseException e) {
-                throw new IllegalArgumentException(
-                        "Fecha del evento Kafka no valida", e
-                );
-            }
+            validarFecha(fecha.asString());
 
             return new NotificacionCatalogo(
                     identificador.asString(),
@@ -126,6 +120,16 @@ public class CatalogoKafkaConsumerAdapter {
         } catch (JacksonException e) {
             throw new IllegalArgumentException(
                     "El mensaje Kafka no contiene un JSON valido", e
+            );
+        }
+    }
+
+    private void validarFecha(String fecha) {
+        try {
+            Instant.parse(fecha);
+        } catch (DateTimeParseException e) {
+            throw new IllegalArgumentException(
+                    "Fecha del evento Kafka no valida", e
             );
         }
     }

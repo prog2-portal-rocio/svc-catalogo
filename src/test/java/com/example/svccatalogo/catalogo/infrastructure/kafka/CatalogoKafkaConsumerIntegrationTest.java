@@ -27,6 +27,7 @@ import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.admin.AdminClientConfig;
 import org.apache.kafka.common.TopicPartition;
 import java.util.Map;
+import static org.awaitility.Awaitility.await;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -127,13 +128,9 @@ class CatalogoKafkaConsumerIntegrationTest {
         long offsetEvento = resultado.getRecordMetadata().offset();
 
         // Esperamos a que el manejador de errores detenga el consumidor.
-        long limite = System.nanoTime()
-                + TimeUnit.SECONDS.toNanos(15);
-
-        while (contenedor.isRunning()
-                && System.nanoTime() < limite) {
-            Thread.sleep(100);
-        }
+        await()
+                .atMost(15, TimeUnit.SECONDS)
+                .until(() -> !contenedor.isRunning());
 
         assertFalse(
                 contenedor.isRunning(),
@@ -224,14 +221,9 @@ class CatalogoKafkaConsumerIntegrationTest {
         verify(procesarPort, timeout(20000))
                 .procesar(notificacion);
 
-        // Espera a que el consumidor se detenga.
-        long limite = System.nanoTime()
-                + TimeUnit.SECONDS.toNanos(15);
-
-        while (contenedor.isRunning()
-                && System.nanoTime() < limite) {
-            Thread.sleep(100);
-        }
+        await()
+                .atMost(15, TimeUnit.SECONDS)
+                .until(() -> !contenedor.isRunning());
 
         assertFalse(
                 contenedor.isRunning(),
