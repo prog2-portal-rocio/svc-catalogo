@@ -67,6 +67,7 @@ class CatalogoKafkaConsumerIntegrationTest {
     private KafkaListenerEndpointRegistry listenerRegistry;
 
     @Test
+    @Order(1)
     void debeRecibirEventoKafkaYProcesarNotificacion() throws Exception {
 
         // Esperamos a que el consumidor tenga una particion asignada.
@@ -102,6 +103,67 @@ class CatalogoKafkaConsumerIntegrationTest {
                         7L
                 )
         );
+    }
+    @Test
+    @Order(3)
+    @DirtiesContext(methodMode = DirtiesContext.MethodMode.AFTER_METHOD)
+    void debeDetenerConsumidorAnteJsonInvalidoSinConfirmarOffset()
+            throws Exception {
+
+        var contenedor = listenerRegistry
+                .getListenerContainers()
+                .iterator()
+                .next();
+
+        ContainerTestUtils.waitForAssignment(contenedor, 1);
+
+        // Publicamos un JSON invalido.
+        var resultado = kafkaTemplate.send(
+                "catalogo-prueba",
+                "9",
+                "esto no es JSON"
+        ).get(15, TimeUnit.SECONDS);
+
+        long offsetEvento = resultado.getRecordMetadata().offset();
+
+        // Esperamos a que el manejador de errores detenga el consumidor.
+        long limite = System.nanoTime()
+                + TimeUnit.SECONDS.toNanos(15);
+
+        while (contenedor.isRunning()
+                && System.nanoTime() < limite) {
+            Thread.sleep(100);
+        }
+
+        assertFalse(
+                contenedor.isRunning(),
+                "Un JSON invalido debe detener el consumidor"
+        );
+
+        // No se debe invocar el caso de uso.
+        verifyNoInteractions(procesarPort);
+
+        // Comprobamos que el offset del mensaje invalido
+        // no fue confirmado.
+        try (AdminClient admin = AdminClient.create(Map.of(
+                AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG,
+                kafka.getBootstrapServers()
+        ))) {
+            var offsets = admin.listConsumerGroupOffsets(
+                            "catalogo-integracion-test"
+                    ).partitionsToOffsetAndMetadata()
+                    .get(10, TimeUnit.SECONDS);
+
+            var metadata = offsets.get(
+                    new TopicPartition("catalogo-prueba", 0)
+            );
+
+            assertTrue(
+                    metadata == null
+                            || metadata.offset() <= offsetEvento,
+                    "No debe confirmarse un mensaje invalido"
+            );
+        }
     }
 
     @TestConfiguration(proxyBeanMethods = false)
