@@ -12,6 +12,13 @@ import java.util.List;
 import com.example.svccatalogo.catalogo.application.exception.FuenteCatalogoNoDisponibleException;
 import org.springframework.data.redis.RedisConnectionFailureException;
 import java.util.function.Supplier;
+import com.example.svccatalogo.catalogo.domain.model.Categoria;
+import com.example.svccatalogo.catalogo.domain.model.Profesional;
+import com.example.svccatalogo.catalogo.domain.model.HorarioSemanal;
+import com.example.svccatalogo.catalogo.infrastructure.client.CatalogoSnapshotMapper;
+import com.example.svccatalogo.catalogo.infrastructure.client.dto.SnapshotResponseDto.CategoriaResponseDto;
+import com.example.svccatalogo.catalogo.infrastructure.client.dto.SnapshotResponseDto.ProfesionalResponseDto;
+import com.example.svccatalogo.catalogo.infrastructure.client.dto.SnapshotResponseDto.HorarioSemanalResponseDto;
 
 import java.util.Optional;
 
@@ -27,9 +34,21 @@ public class CatalogoRedisAdapter implements CatalogoRedisPort {
     private static final String PREFIJO_CAMBIOS =
             "catedra:sync:changes:";
 
+    private static final String HASH_CATEGORIAS =
+            "catedra:sync:professional-categories";
+
+    private static final String HASH_PROFESIONALES =
+            "catedra:sync:professionals";
+
+    private static final String HASH_HORARIOS =
+            "catedra:sync:weekly-schedules";
+
     private final StringRedisTemplate redisTemplate;
 
     private final JsonMapper jsonMapper;
+
+    private final CatalogoSnapshotMapper snapshotMapper =
+            new CatalogoSnapshotMapper();
 
     public CatalogoRedisAdapter(
             StringRedisTemplate redisTemplate,
@@ -182,6 +201,93 @@ public class CatalogoRedisAdapter implements CatalogoRedisPort {
         } catch (RedisConnectionFailureException e) {
             throw new FuenteCatalogoNoDisponibleException(
                     "No se pudo establecer conexion con Redis", e
+            );
+        }
+    }
+
+    @Override
+    public Optional<Categoria> obtenerCategoria(long id) {
+        return leerEntidad(
+                HASH_CATEGORIAS,
+                id,
+                CategoriaResponseDto.class
+        ).map(dto -> {
+            validarIdentificador(id, dto.id());
+            return snapshotMapper.toCategoria(dto);
+        });
+    }
+
+    @Override
+    public Optional<Profesional> obtenerProfesional(long id) {
+        return leerEntidad(
+                HASH_PROFESIONALES,
+                id,
+                ProfesionalResponseDto.class
+        ).map(dto -> {
+            validarIdentificador(id, dto.id());
+            return snapshotMapper.toProfesional(dto);
+        });
+    }
+
+    @Override
+    public Optional<HorarioSemanal> obtenerHorarioSemanal(long id) {
+        return leerEntidad(
+                HASH_HORARIOS,
+                id,
+                HorarioSemanalResponseDto.class
+        ).map(dto -> {
+            validarIdentificador(id, dto.id());
+            return snapshotMapper.toHorarioSemanal(dto);
+        });
+    }
+
+    private <T> Optional<T> leerEntidad(
+            String claveHash,
+            long id,
+            Class<T> tipoDto
+    ) {
+        if (id <= 0) {
+            throw new IllegalArgumentException(
+                    "El identificador debe ser positivo"
+            );
+        }
+
+        String json = ejecutarConsulta(
+                () -> redisTemplate.<String, String>opsForHash()
+                        .get(claveHash, Long.toString(id))
+        );
+
+        if (json == null) {
+            return Optional.empty();
+        }
+
+        try {
+            T entidad = jsonMapper.readValue(json, tipoDto);
+
+            if (entidad == null) {
+                throw new IllegalStateException(
+                        "La entidad de Redis no puede ser nula"
+                );
+            }
+
+            return Optional.of(entidad);
+
+        } catch (JacksonException e) {
+            throw new IllegalStateException(
+                    "El contenido de la entidad en Redis no es valido",
+                    e
+            );
+        }
+    }
+
+    private void validarIdentificador(
+            long idSolicitado,
+            Long idRecibido
+    ) {
+        if (idRecibido == null
+                || idRecibido.longValue() != idSolicitado) {
+            throw new IllegalStateException(
+                    "El identificador de Redis no coincide con el solicitado"
             );
         }
     }
