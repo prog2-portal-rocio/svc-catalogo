@@ -267,13 +267,17 @@ class CatalogoIncrementalPersistenceAdapterTest {
                 true, FECHA, FECHA
         );
 
+        List<Categoria> nuevasCategorias = List.of(nuevaCategoria);
+        List<Profesional> profesionalesInvalidos = List.of(profesionalInvalido);
+        List<HorarioSemanal> horariosSinCambios = List.of();
+
         assertThrows(
                 RuntimeException.class,
                 () -> incrementalPort.aplicarVersion(
                         10L, 11L,
-                        List.of(nuevaCategoria),
-                        List.of(profesionalInvalido),
-                        List.of()
+                        nuevasCategorias,
+                        profesionalesInvalidos,
+                        horariosSinCambios
                 )
         );
 
