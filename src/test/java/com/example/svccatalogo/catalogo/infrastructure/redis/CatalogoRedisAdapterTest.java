@@ -1,5 +1,8 @@
 package com.example.svccatalogo.catalogo.infrastructure.redis;
 
+import com.example.svccatalogo.catalogo.domain.model.Categoria;
+import com.example.svccatalogo.catalogo.domain.model.HorarioSemanal;
+import com.example.svccatalogo.catalogo.domain.model.Profesional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -13,6 +16,7 @@ import com.example.svccatalogo.catalogo.application.exception.FuenteCatalogoNoDi
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 import java.util.stream.Stream;
+import org.springframework.data.redis.core.HashOperations;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
@@ -22,11 +26,17 @@ class CatalogoRedisAdapterTest {
     private StringRedisTemplate redisTemplate;
     private ValueOperations<String, String> operaciones;
     private CatalogoRedisAdapter adapter;
+    private HashOperations<String, String, String> hashes;
 
     @BeforeEach
     void configurar() {
         redisTemplate = mock(StringRedisTemplate.class);
         operaciones = mock(ValueOperations.class);
+
+        hashes = mock(HashOperations.class);
+
+        when(redisTemplate.<String, String>opsForHash())
+                .thenReturn(hashes);
 
         when(redisTemplate.opsForValue()).thenReturn(operaciones);
 
@@ -184,6 +194,133 @@ class CatalogoRedisAdapterTest {
                   }
                 }
                 """
+        );
+    }
+
+    @Test
+    void debeObtenerProfesionalDesdeRedis() {
+        String json = """
+            {
+              "id": 15,
+              "categoryId": 1,
+              "firstName": "Ana",
+              "lastName": "García",
+              "enabled": false,
+              "createdAt": "2026-01-15T10:00:00Z",
+              "updatedAt": "2026-01-16T10:00:00Z"
+            }
+            """;
+
+        when(hashes.get("catedra:sync:professionals", "15"))
+                .thenReturn(json);
+
+        Profesional profesional =
+                adapter.obtenerProfesional(15L).orElseThrow();
+
+        assertEquals(15L, profesional.getId());
+        assertEquals(1L, profesional.getCategoryId());
+        assertEquals("Ana", profesional.getFirstName());
+        assertFalse(profesional.isEnabled());
+    }
+
+    @Test
+    void debeObtenerCategoriaDesdeRedis() {
+        String json = """
+            {
+              "id": 1,
+              "name": "Peluquería",
+              "description": "Servicios de cabello",
+              "enabled": true,
+              "createdAt": "2026-01-15T10:00:00Z",
+              "updatedAt": "2026-01-15T10:00:00Z"
+            }
+            """;
+
+        when(hashes.get("catedra:sync:professional-categories", "1"))
+                .thenReturn(json);
+
+        Categoria categoria =
+                adapter.obtenerCategoria(1L).orElseThrow();
+
+        assertEquals(1L, categoria.getId());
+        assertEquals("Peluquería", categoria.getName());
+        assertTrue(categoria.isEnabled());
+    }
+
+    @Test
+    void debeObtenerHorarioSemanalDesdeRedis() {
+        String json = """
+            {
+              "id": 100,
+              "professionalId": 15,
+              "dayOfWeek": "MONDAY",
+              "startTime": "09:00:00",
+              "endTime": "13:00:00",
+              "slotDurationMinutes": 30,
+              "enabled": true,
+              "createdAt": "2026-01-15T10:00:00Z",
+              "updatedAt": "2026-01-15T10:00:00Z"
+            }
+            """;
+
+        when(hashes.get("catedra:sync:weekly-schedules", "100"))
+                .thenReturn(json);
+
+        HorarioSemanal horario =
+                adapter.obtenerHorarioSemanal(100L).orElseThrow();
+
+        assertEquals(100L, horario.getId());
+        assertEquals(15L, horario.getProfessionalId());
+        assertEquals(30, horario.getSlotDurationMinutes());
+        assertTrue(horario.isEnabled());
+    }
+
+    @Test
+    void debeDevolverVacioSiLaEntidadNoExiste() {
+        when(hashes.get("catedra:sync:professionals", "15"))
+                .thenReturn(null);
+
+        assertTrue(adapter.obtenerProfesional(15L).isEmpty());
+    }
+
+    @Test
+    void debeRechazarEntidadConIdentificadorDistinto() {
+        String json = """
+            {
+              "id": 99,
+              "categoryId": 1,
+              "firstName": "Ana",
+              "lastName": "García",
+              "enabled": true
+            }
+            """;
+
+        when(hashes.get("catedra:sync:professionals", "15"))
+                .thenReturn(json);
+
+        assertThrows(
+                IllegalStateException.class,
+                () -> adapter.obtenerProfesional(15L)
+        );
+    }
+
+    @Test
+    void debeRechazarEntidadSinEstadoEnabled() {
+        String json = """
+            {
+              "id": 15,
+              "categoryId": 1,
+              "firstName": "Ana",
+              "lastName": "García"
+            }
+            """;
+
+        when(hashes.get("catedra:sync:professionals", "15"))
+                .thenReturn(json);
+
+        assertThrows(
+                RuntimeException.class,
+                () -> adapter.obtenerProfesional(15L)
         );
     }
 }

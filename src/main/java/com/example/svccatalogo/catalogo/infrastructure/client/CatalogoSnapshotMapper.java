@@ -38,7 +38,7 @@ public class CatalogoSnapshotMapper {
         );
     }
 
-    private Categoria toCategoria(CategoriaResponseDto dto) {
+    public Categoria toCategoria(CategoriaResponseDto dto) {
         Objects.requireNonNull(dto, "La categoria no puede ser nula");
         return new Categoria(
                 dto.id(),
@@ -50,7 +50,7 @@ public class CatalogoSnapshotMapper {
         );
     }
 
-    private Profesional toProfesional(ProfesionalResponseDto dto) {
+    public Profesional toProfesional(ProfesionalResponseDto dto) {
         Objects.requireNonNull(dto, "El profesional no puede ser nulo");
         return new Profesional(
                 dto.id(),
@@ -63,7 +63,7 @@ public class CatalogoSnapshotMapper {
         );
     }
 
-    private HorarioSemanal toHorarioSemanal(HorarioSemanalResponseDto dto) {
+    public HorarioSemanal toHorarioSemanal(HorarioSemanalResponseDto dto) {
         Objects.requireNonNull(dto, "El horario no puede ser nulo");
         return new HorarioSemanal(
                 dto.id(),
