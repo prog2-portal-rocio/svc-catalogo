@@ -3,7 +3,7 @@ package com.example.svccatalogo.catalogo.application.usecases;
 import com.example.svccatalogo.catalogo.domain.model.EstadoSincronizacion;
 import com.example.svccatalogo.catalogo.domain.model.NotificacionCatalogo;
 import com.example.svccatalogo.catalogo.domain.ports.in.ConsultarEstadoSincronizacionPort;
-import com.example.svccatalogo.catalogo.domain.ports.in.SincronizarCatalogoPort;
+import com.example.svccatalogo.catalogo.domain.ports.in.SincronizarCatalogoIncrementalPort;
 import com.example.svccatalogo.catalogo.domain.ports.out.EventoCatalogoProcesadoPort;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -15,14 +15,14 @@ class ProcesarNotificacionCatalogoServiceTest {
 
     private EventoCatalogoProcesadoPort eventosPort;
     private ConsultarEstadoSincronizacionPort estadoPort;
-    private SincronizarCatalogoPort sincronizarPort;
+    private SincronizarCatalogoIncrementalPort sincronizarPort;
     private ProcesarNotificacionCatalogoService service;
 
     @BeforeEach
     void configurar() {
         eventosPort = mock(EventoCatalogoProcesadoPort.class);
         estadoPort = mock(ConsultarEstadoSincronizacionPort.class);
-        sincronizarPort = mock(SincronizarCatalogoPort.class);
+        sincronizarPort = mock(SincronizarCatalogoIncrementalPort.class);
 
         service = new ProcesarNotificacionCatalogoService(
                 eventosPort,
@@ -65,7 +65,7 @@ class ProcesarNotificacionCatalogoServiceTest {
 
         service.procesar(new NotificacionCatalogo("evento-123", 7L));
 
-        verify(sincronizarPort).sincronizarCatalogo();
+        verify(sincronizarPort).sincronizarCatalogoIncremental();
     }
 
     @Test
@@ -78,7 +78,7 @@ class ProcesarNotificacionCatalogoServiceTest {
 
         service.procesar(new NotificacionCatalogo("evento-123", 7L));
 
-        verify(sincronizarPort).sincronizarCatalogo();
+        verify(sincronizarPort).sincronizarCatalogoIncremental();
     }
 
     @Test
@@ -90,7 +90,7 @@ class ProcesarNotificacionCatalogoServiceTest {
                 .thenReturn(estado(5L));
 
         doThrow(new IllegalStateException("Error de sincronizacion"))
-                .when(sincronizarPort).sincronizarCatalogo();
+                .when(sincronizarPort).sincronizarCatalogoIncremental();
 
         NotificacionCatalogo notificacion =
                 new NotificacionCatalogo("evento-123", 7L);
@@ -117,7 +117,27 @@ class ProcesarNotificacionCatalogoServiceTest {
                 () -> service.procesar(notificacion)
         );
 
-        verify(sincronizarPort).sincronizarCatalogo();
+        verify(sincronizarPort).sincronizarCatalogoIncremental();
+    }
+
+    @Test
+    void debeDescartarNotificacionAtrasadaSinSincronizar() {
+        when(eventosPort.registrarSiNoExiste("evento-atrasado", 6L)).thenReturn(true);
+        when(estadoPort.consultarEstado()).thenReturn(estado(8L));
+
+        service.procesar(new NotificacionCatalogo("evento-atrasado", 6L));
+
+        verifyNoInteractions(sincronizarPort);
+    }
+
+    @Test
+    void debeAceptarVersionVigenteSuperiorALaNotificada() {
+        when(eventosPort.registrarSiNoExiste("evento-123", 7L)).thenReturn(true);
+        when(estadoPort.consultarEstado()).thenReturn(estado(5L), estado(9L));
+
+        service.procesar(new NotificacionCatalogo("evento-123", 7L));
+
+        verify(sincronizarPort).sincronizarCatalogoIncremental();
     }
 
     private EstadoSincronizacion estado(Long version) {

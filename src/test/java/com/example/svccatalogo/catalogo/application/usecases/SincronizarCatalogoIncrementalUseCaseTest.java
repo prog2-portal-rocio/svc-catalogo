@@ -5,7 +5,6 @@ import com.example.svccatalogo.catalogo.domain.ports.in.SincronizarCatalogoPort;
 import com.example.svccatalogo.catalogo.domain.ports.out.*;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.mockito.InOrder;
 
 import java.util.List;
 import java.util.Optional;

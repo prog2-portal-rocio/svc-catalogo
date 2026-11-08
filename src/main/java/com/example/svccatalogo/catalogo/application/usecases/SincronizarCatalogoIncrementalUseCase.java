@@ -12,7 +12,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
-import java.util.function.Function;
+import java.util.function.LongFunction;
 
 @Service
 public class SincronizarCatalogoIncrementalUseCase
@@ -74,29 +74,11 @@ public class SincronizarCatalogoIncrementalUseCase
             Set<Long> idsProfesionales = new LinkedHashSet<>();
             Set<Long> idsHorarios = new LinkedHashSet<>();
 
-            // Reunir los IDs modificados en todas las versiones pendientes.
-            for (long version = versionLocal + 1;
-                 version <= versionObjetivo;
-                 version++) {
-
-                Optional<CambiosCatalogo> cambiosOpt =
-                        redisPort.obtenerCambios(version);
-
-                if (cambiosOpt.isEmpty()) {
-                    sincronizacionCompleta.sincronizarCatalogo();
-                    return;
-                }
-
-                CambiosCatalogo cambios = cambiosOpt.orElseThrow();
-
-                if (cambios.version() != version) {
-                    sincronizacionCompleta.sincronizarCatalogo();
-                    return;
-                }
-
-                idsCategorias.addAll(cambios.categorias());
-                idsProfesionales.addAll(cambios.profesionales());
-                idsHorarios.addAll(cambios.horariosSemanales());
+            if (!reunirIdsModificados(
+                    versionLocal, versionObjetivo,
+                    idsCategorias, idsProfesionales, idsHorarios)) {
+                sincronizacionCompleta.sincronizarCatalogo();
+                return;
             }
 
             // Recuperar el estado vigente, evitando IDs duplicados.
@@ -124,14 +106,14 @@ public class SincronizarCatalogoIncrementalUseCase
             }
 
             // Si Redis publico otra version durante la lectura,
-            // descartamos lo recuperado y volvemos a intentar.
+            // descartalo recuperado y vuelve a intentar.
             long versionFinal = redisPort.obtenerVersionActual();
 
             if (versionFinal != versionObjetivo) {
                 continue;
             }
 
-            // Persistir todos los cambios y avanzar a la version objetivo.
+            // version objetivo.
             persistencePort.aplicarVersion(
                     versionLocal,
                     versionObjetivo,
@@ -143,13 +125,46 @@ public class SincronizarCatalogoIncrementalUseCase
             return;
         }
 
-        // Si Redis sigue cambiando, recuperamos un snapshot completo.
+        // Si Redis sigue cambiando, recupero un snapshot completo.
         sincronizacionCompleta.sincronizarCatalogo();
+    }
+
+    private boolean reunirIdsModificados(
+            long versionLocal,
+            long versionObjetivo,
+            Set<Long> idsCategorias,
+            Set<Long> idsProfesionales,
+            Set<Long> idsHorarios) {
+
+        // Reunir los IDs modificados en todas las versiones pendientes.
+        for (long version = versionLocal + 1;
+             version <= versionObjetivo;
+             version++) {
+
+            Optional<CambiosCatalogo> cambiosOpt =
+                    redisPort.obtenerCambios(version);
+
+            if (cambiosOpt.isEmpty()) {
+                return false;
+            }
+
+            CambiosCatalogo cambios = cambiosOpt.orElseThrow();
+
+            if (cambios.version() != version) {
+                return false;
+            }
+
+            idsCategorias.addAll(cambios.categorias());
+            idsProfesionales.addAll(cambios.profesionales());
+            idsHorarios.addAll(cambios.horariosSemanales());
+        }
+
+        return true;
     }
 
     private <T> Optional<List<T>> recuperarEntidades(
             Set<Long> ids,
-            Function<Long, Optional<T>> lector) {
+            LongFunction<Optional<T>> lector) {
 
         List<T> entidades = new ArrayList<>();
 
