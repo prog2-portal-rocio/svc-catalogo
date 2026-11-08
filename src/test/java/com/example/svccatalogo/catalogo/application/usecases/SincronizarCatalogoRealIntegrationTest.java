@@ -1,5 +1,6 @@
 package com.example.svccatalogo.catalogo.application.usecases;
 
+import com.example.svccatalogo.catalogo.infrastructure.security.JwtTestContextInitializer;
 import com.example.svccatalogo.catalogo.domain.ports.in.SincronizarCatalogoPort;
 import com.example.svccatalogo.catalogo.domain.ports.out.CategoriaRepositoryPort;
 import com.example.svccatalogo.catalogo.domain.ports.out.ProfesionalRepositoryPort;
@@ -7,6 +8,7 @@ import com.example.svccatalogo.catalogo.domain.ports.out.HorarioSemanalRepositor
 import com.example.svccatalogo.catalogo.domain.ports.out.EstadoSincronizacionRepositoryPort;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
+import org.springframework.test.context.ContextConfiguration;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
@@ -16,6 +18,7 @@ import org.testcontainers.postgresql.PostgreSQLContainer;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+@ContextConfiguration(initializers = JwtTestContextInitializer.class)
 @SpringBootTest
 @Testcontainers
 @EnabledIfEnvironmentVariable(

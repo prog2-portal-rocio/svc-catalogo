@@ -1,5 +1,6 @@
 package com.example.svccatalogo.catalogo.infrastructure.kafka;
 
+import com.example.svccatalogo.catalogo.infrastructure.security.JwtTestContextInitializer;
 import com.example.svccatalogo.catalogo.domain.model.CambiosCatalogo;
 import com.example.svccatalogo.catalogo.domain.model.Categoria;
 import com.example.svccatalogo.catalogo.domain.ports.out.CatalogoRedisPort;
@@ -13,6 +14,7 @@ import org.junit.jupiter.api.MethodOrderer;
 import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestMethodOrder;
+import org.springframework.test.context.ContextConfiguration;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.TestConfiguration;
@@ -42,6 +44,7 @@ import static org.awaitility.Awaitility.await;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
+@ContextConfiguration(initializers = JwtTestContextInitializer.class)
 @SpringBootTest(properties = {
         "catalogo.kafka.topic=catalogo-prueba",
         "spring.kafka.consumer.group-id=catalogo-integracion-test",
