@@ -37,7 +37,6 @@ public class SecurityConfig {
 
     private HttpSecurity configurarStateless(HttpSecurity http) {
         return http
-                .csrf(AbstractHttpConfigurer::disable)
                 .formLogin(AbstractHttpConfigurer::disable)
                 .httpBasic(AbstractHttpConfigurer::disable)
                 .requestCache(AbstractHttpConfigurer::disable)

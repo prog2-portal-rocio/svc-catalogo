@@ -36,6 +36,7 @@ import java.util.stream.Stream;
 
 import static org.mockito.Mockito.*;
 import static org.hamcrest.Matchers.startsWith;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -56,6 +57,7 @@ class JwtSecurityHttpTest {
     void rechazaSolicitudSinToken() throws Exception {
         mockMvc.perform(get(ESTADO))
                 .andExpect(status().isUnauthorized())
+                .andExpect(result -> assertNull(result.getRequest().getSession(false)))
                 .andExpect(header().string(HttpHeaders.WWW_AUTHENTICATE, startsWith("Bearer")));
 
         verifyNoInteractions(estadoPort);
@@ -101,6 +103,7 @@ class JwtSecurityHttpTest {
 
         mockMvc.perform(get(ESTADO).header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
                 .andExpect(status().isOk())
+                .andExpect(result -> assertNull(result.getRequest().getSession(false)))
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
                 .andExpect(content().json("""
                         {"appliedVersion":7,"appliedAt":"2026-10-27T20:00:00Z",
