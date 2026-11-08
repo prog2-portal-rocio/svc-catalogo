@@ -1,6 +1,7 @@
 package com.example.svccatalogo.catalogo.infrastructure.persistence.adapter;
 
 import com.example.svccatalogo.catalogo.domain.model.Profesional;
+import com.example.svccatalogo.catalogo.domain.model.CriteriosBusquedaProfesional;
 import com.example.svccatalogo.catalogo.domain.ports.out.ProfesionalRepositoryPort;
 import com.example.svccatalogo.catalogo.infrastructure.persistence.mapper.ProfesionalMapper;
 import com.example.svccatalogo.catalogo.infrastructure.persistence.repository.ProfesionalJpaRepository;
@@ -27,6 +28,17 @@ public class ProfesionalPersistenceAdapter implements ProfesionalRepositoryPort 
     @Override
     public List<Profesional> findAll() {
         return repository.findAll().stream()
+                .map(ProfesionalMapper::toDomain)
+                .toList();
+    }
+
+    @Override
+    public List<Profesional> buscar(CriteriosBusquedaProfesional criterios) {
+        return repository.buscar(
+                        criterios.categoriaId(),
+                        criterios.nombre(),
+                        criterios.habilitado()
+                ).stream()
                 .map(ProfesionalMapper::toDomain)
                 .toList();
     }
