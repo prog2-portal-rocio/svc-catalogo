@@ -8,6 +8,7 @@ import org.springframework.stereotype.Repository;
 
 import java.util.List;
 import java.util.Optional;
+import java.time.DayOfWeek;
 
 @Repository
 public class HorarioSemanalPersistenceAdapter implements HorarioSemanalRepositoryPort {
@@ -27,6 +28,17 @@ public class HorarioSemanalPersistenceAdapter implements HorarioSemanalRepositor
     @Override
     public List<HorarioSemanal> findAll() {
         return repository.findAll().stream()
+                .map(HorarioSemanalMapper::toDomain)
+                .toList();
+    }
+
+    @Override
+    public List<HorarioSemanal> buscarHabilitadosPorProfesionalesYDia(List<Long> profesionalIds, DayOfWeek dia) {
+        if (profesionalIds.isEmpty()) {
+            return List.of();
+        }
+        return repository.findByProfessionalIdInAndDayOfWeekAndEnabledTrue(profesionalIds, dia)
+                .stream()
                 .map(HorarioSemanalMapper::toDomain)
                 .toList();
     }

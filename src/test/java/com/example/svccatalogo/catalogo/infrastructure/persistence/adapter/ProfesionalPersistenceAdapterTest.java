@@ -4,6 +4,8 @@ import com.example.svccatalogo.catalogo.infrastructure.security.JwtTestContextIn
 import com.example.svccatalogo.catalogo.domain.model.Categoria;
 import com.example.svccatalogo.catalogo.domain.model.CriteriosBusquedaProfesional;
 import com.example.svccatalogo.catalogo.domain.model.Profesional;
+import com.example.svccatalogo.catalogo.domain.model.HorarioSemanal;
+import com.example.svccatalogo.catalogo.domain.ports.out.HorarioSemanalRepositoryPort;
 import com.example.svccatalogo.catalogo.domain.ports.in.BuscarProfesionalesPort;
 import com.example.svccatalogo.catalogo.domain.ports.out.CategoriaRepositoryPort;
 import com.example.svccatalogo.catalogo.domain.ports.out.ProfesionalRepositoryPort;
@@ -25,6 +27,9 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.postgresql.PostgreSQLContainer;
 
 import java.time.Instant;
+import java.time.DayOfWeek;
+import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -57,6 +62,9 @@ class ProfesionalPersistenceAdapterTest {
 
     @Autowired
     private MockMvc mockMvc;
+
+    @Autowired
+    private HorarioSemanalRepositoryPort horarioRepository;
 
     @Test
     void guardaYRecuperaUnProfesionalConSuCategoria() {
@@ -188,6 +196,91 @@ class ProfesionalPersistenceAdapterTest {
     private MockHttpServletRequestBuilder consultaAutorizada() {
         return get("/api/catalogo/profesionales")
                 .with(jwt().authorities(new SimpleGrantedAuthority("SCOPE_catalogo:read")));
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("disponibilidades")
+    void buscaDisponibilidadConLaAgendaLocal(String descripcion, String fecha, String hora,
+                                            Long categoriaId, String nombre, Boolean habilitado,
+                                            Set<Long> esperados) {
+        cargarAgendaParaDisponibilidad();
+        var criterios = new CriteriosBusquedaProfesional(categoriaId, nombre, habilitado,
+                LocalDate.parse(fecha), hora == null ? null : LocalTime.parse(hora));
+
+        var resultados = buscarProfesionalesPort.buscarProfesionales(criterios);
+
+        assertEquals(esperados.size(), resultados.size());
+        assertEquals(esperados, resultados.stream().map(Profesional::getId).collect(Collectors.toSet()));
+    }
+
+    @Test
+    void apiConsultaDisponibilidadLocalConTodosLosFiltros() throws Exception {
+        cargarAgendaParaDisponibilidad();
+
+        mockMvc.perform(consultaAutorizada().param("fecha", "2026-11-09").param("hora", "11:30")
+                        .param("categoriaId", "1").param("nombre", "  aNa  ").param("habilitado", "true"))
+                .andExpect(status().isOk())
+                .andExpect(content().json("""
+                        [{"id":10,"categoryId":1,"firstName":"Ana","lastName":"García",
+                          "enabled":true,"createdAt":null,"updatedAt":null}]
+                        """));
+    }
+
+    @Test
+    void apiDevuelveListaVaciaSiNoHayBloquesCompletos() throws Exception {
+        cargarAgendaParaDisponibilidad();
+
+        mockMvc.perform(consultaAutorizada().param("fecha", "2026-11-09").param("hora", "12:00"))
+                .andExpect(status().isOk())
+                .andExpect(content().json("[]"));
+    }
+
+    private void cargarAgendaParaDisponibilidad() {
+        cargarProfesionalesParaBusqueda();
+        guardarHorario(1L, 10L, DayOfWeek.MONDAY, "09:00", "12:00", 30, true);
+        guardarHorario(2L, 10L, DayOfWeek.MONDAY, "11:00", "12:00", 30, true);
+        guardarHorario(3L, 12L, DayOfWeek.MONDAY, "09:15", "10:15", 30, true);
+        guardarHorario(4L, 12L, DayOfWeek.MONDAY, "14:00", "15:00", 20, true);
+        guardarHorario(5L, 11L, DayOfWeek.MONDAY, "09:00", "12:00", 30, true);
+        guardarHorario(6L, 14L, DayOfWeek.MONDAY, "09:00", "12:00", 30, true);
+        guardarHorario(7L, 15L, DayOfWeek.MONDAY, "09:00", "09:20", 30, true);
+        guardarHorario(8L, 17L, DayOfWeek.MONDAY, "09:00", "12:00", 30, false);
+        guardarHorario(9L, 17L, DayOfWeek.TUESDAY, "09:00", "12:00", 30, true);
+    }
+
+    private void guardarHorario(Long id, Long profesionalId, DayOfWeek dia,
+                                String inicio, String fin, int duracion, boolean habilitado) {
+        horarioRepository.save(new HorarioSemanal(id, profesionalId, dia,
+                LocalTime.parse(inicio), LocalTime.parse(fin), duracion, habilitado, null, null));
+    }
+
+    private static Stream<Arguments> disponibilidades() {
+        String lunes = "2026-11-09";
+        return Stream.of(
+                Arguments.of("Fecha sin hora", lunes, null, null, null, null, Set.of(10L, 12L)),
+                Arguments.of("Otro lunes", "2026-11-16", null, null, null, null, Set.of(10L, 12L)),
+                Arguments.of("Martes", "2026-11-10", null, null, null, null, Set.of(17L)),
+                Arguments.of("Dia sin atencion", "2026-11-11", null, null, null, null, Set.of()),
+                Arguments.of("Inicio exacto", lunes, "09:00", null, null, null, Set.of(10L)),
+                Arguments.of("Alineacion desde cada horario", lunes, "09:15", null, null, null, Set.of(12L)),
+                Arguments.of("Ultimo bloque y horarios superpuestos sin duplicados", lunes, "11:30", null, null, null, Set.of(10L)),
+                Arguments.of("Hora de cierre", lunes, "12:00", null, null, null, Set.of()),
+                Arguments.of("Antes de apertura", lunes, "08:30", null, null, null, Set.of()),
+                Arguments.of("Despues de cierre", lunes, "18:00", null, null, null, Set.of()),
+                Arguments.of("Desalineado", lunes, "09:10", null, null, null, Set.of()),
+                Arguments.of("Segundos desalineados", lunes, "09:00:01", null, null, null, Set.of()),
+                Arguments.of("Segundo horario del dia", lunes, "14:00", null, null, null, Set.of(12L)),
+                Arguments.of("Ultimo bloque de veinte minutos", lunes, "14:40", null, null, null, Set.of(12L)),
+                Arguments.of("Bloque no cabe", lunes, "14:50", null, null, null, Set.of()),
+                Arguments.of("Hueco entre horarios", lunes, "13:00", null, null, null, Set.of()),
+                Arguments.of("Profesionales deshabilitados", lunes, null, null, null, false, Set.of()),
+                Arguments.of("Categoria deshabilitada", lunes, null, 3L, null, true, Set.of()),
+                Arguments.of("Horario deshabilitado", lunes, null, null, "Julia", true, Set.of()),
+                Arguments.of("Duracion mayor al intervalo", lunes, null, null, "Nombre%Literal", true, Set.of()),
+                Arguments.of("Todos los filtros", lunes, "09:30", 1L, " aNA ", true, Set.of(10L)),
+                Arguments.of("Filtros incompatibles", lunes, "09:30", 2L, "Ana", true, Set.of()),
+                Arguments.of("Categoria inexistente", lunes, null, 999L, null, null, Set.of())
+        );
     }
 
     private void cargarProfesionalesParaBusqueda() {

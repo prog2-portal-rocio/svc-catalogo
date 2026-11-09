@@ -2,14 +2,53 @@
 package com.example.svccatalogo.catalogo.domain.model;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 
 import java.time.DayOfWeek;
 import java.time.Instant;
 import java.time.LocalTime;
+import java.time.LocalDate;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 class HorarioSemanalTest {
+
+    @ParameterizedTest
+    @CsvSource({
+            "2026-11-09,,true,30,true",
+            "2026-11-10,,true,30,false",
+            "2026-11-09,,false,30,false",
+            "2026-11-09,,true,200,false",
+            "2026-11-09,,true,2147483647,false",
+            "2026-11-09,09:00,true,30,true",
+            "2026-11-09,11:30,true,30,true",
+            "2026-11-09,12:00,true,30,false",
+            "2026-11-09,08:30,true,30,false",
+            "2026-11-09,12:30,true,30,false",
+            "2026-11-09,09:15,true,30,false",
+            "2026-11-09,09:00:01,true,30,false",
+            "2026-11-09,09:00:00.000000001,true,30,false",
+            "2026-11-09,11:40,true,40,false",
+            "2026-11-09,11:00,true,40,true"
+    })
+    void compruebaBloquesCompletosAlineados(String fecha, String hora, boolean habilitado,
+                                          int duracion, boolean esperado) {
+        var horario = new HorarioSemanal(1L, 1L, DayOfWeek.MONDAY,
+                LocalTime.of(9, 0), LocalTime.of(12, 0), duracion, habilitado, null, null);
+
+        assertEquals(esperado, horario.tieneBloqueDisponible(LocalDate.parse(fecha),
+                hora == null ? null : LocalTime.parse(hora)));
+    }
+
+    @Test
+    void noEnvuelveElBloqueHaciaElDiaSiguiente() {
+        var horario = new HorarioSemanal(1L, 1L, DayOfWeek.MONDAY,
+                LocalTime.of(23, 0), LocalTime.of(23, 50), 30, true, null, null);
+
+        assertTrue(horario.tieneBloqueDisponible(LocalDate.of(2026, 11, 9), LocalTime.of(23, 0)));
+        assertFalse(horario.tieneBloqueDisponible(LocalDate.of(2026, 11, 9), LocalTime.of(23, 30)));
+    }
 
     private final Instant creacion =
             Instant.parse("2026-07-01T12:00:00Z");

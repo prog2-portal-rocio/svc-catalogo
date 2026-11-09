@@ -37,7 +37,8 @@ public class ProfesionalPersistenceAdapter implements ProfesionalRepositoryPort 
         return repository.buscar(
                         criterios.categoriaId(),
                         criterios.nombre(),
-                        criterios.habilitado()
+                        criterios.habilitado(),
+                        criterios.fecha() == null ? null : criterios.fecha().getDayOfWeek()
                 ).stream()
                 .map(ProfesionalMapper::toDomain)
                 .toList();
