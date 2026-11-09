@@ -20,6 +20,8 @@ public class SecurityConfig {
         return configurarStateless(http)
                 .securityMatcher("/api/**")
                 .authorizeHttpRequests(authorize -> authorize
+                        .requestMatchers(HttpMethod.GET, "/api/catalogo/profesionales")
+                        .hasAuthority("SCOPE_catalogo:read")
                         .requestMatchers(HttpMethod.GET, "/api/catalogo/sincronizacion/estado")
                         .hasAuthority("SCOPE_catalogo:sync:read")
                         .anyRequest().denyAll())

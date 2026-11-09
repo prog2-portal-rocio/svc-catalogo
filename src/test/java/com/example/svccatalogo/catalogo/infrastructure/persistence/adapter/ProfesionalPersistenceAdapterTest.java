@@ -15,6 +15,10 @@ import org.springframework.test.context.ContextConfiguration;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import org.springframework.transaction.annotation.Transactional;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
@@ -26,9 +30,13 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @ContextConfiguration(initializers = JwtTestContextInitializer.class)
 @SpringBootTest
+@AutoConfigureMockMvc
 @Testcontainers
 @Transactional
 class ProfesionalPersistenceAdapterTest {
@@ -46,6 +54,9 @@ class ProfesionalPersistenceAdapterTest {
 
     @Autowired
     private BuscarProfesionalesPort buscarProfesionalesPort;
+
+    @Autowired
+    private MockMvc mockMvc;
 
     @Test
     void guardaYRecuperaUnProfesionalConSuCategoria() {
@@ -131,6 +142,52 @@ class ProfesionalPersistenceAdapterTest {
         var criterios = new CriteriosBusquedaProfesional(null, null, null);
 
         assertTrue(buscarProfesionalesPort.buscarProfesionales(criterios).isEmpty());
+    }
+
+    @Test
+    void apiBuscaEnPostgreSQLConLosTresFiltros() throws Exception {
+        cargarProfesionalesParaBusqueda();
+
+        mockMvc.perform(consultaAutorizada()
+                        .param("categoriaId", "2")
+                        .param("nombre", "  aNa  ")
+                        .param("habilitado", "false"))
+                .andExpect(status().isOk())
+                .andExpect(content().json("""
+                        [{"id":13,"categoryId":2,"firstName":"ANA","lastName":"Lopez",
+                          "enabled":false,"createdAt":null,"updatedAt":null}]
+                        """));
+    }
+
+    @Test
+    void apiSinFiltrosDevuelveLaCopiaLocalCompleta() throws Exception {
+        cargarProfesionalesParaBusqueda();
+
+        mockMvc.perform(consultaAutorizada())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(8));
+    }
+
+    @Test
+    void apiDevuelveListaVaciaParaCategoriaSinCoincidencias() throws Exception {
+        cargarProfesionalesParaBusqueda();
+
+        mockMvc.perform(consultaAutorizada().param("categoriaId", "999"))
+                .andExpect(status().isOk())
+                .andExpect(content().json("[]"));
+    }
+
+    @Test
+    void apiRechazaParametrosInvalidosConProblemDetail() throws Exception {
+        mockMvc.perform(consultaAutorizada().param("categoriaId", "0"))
+                .andExpect(status().isBadRequest())
+                .andExpect(content().contentTypeCompatibleWith("application/problem+json"))
+                .andExpect(jsonPath("$.status").value(400));
+    }
+
+    private MockHttpServletRequestBuilder consultaAutorizada() {
+        return get("/api/catalogo/profesionales")
+                .with(jwt().authorities(new SimpleGrantedAuthority("SCOPE_catalogo:read")));
     }
 
     private void cargarProfesionalesParaBusqueda() {
