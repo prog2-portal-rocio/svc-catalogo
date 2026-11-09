@@ -5,6 +5,7 @@ import com.example.svccatalogo.catalogo.domain.model.Profesional;
 import com.example.svccatalogo.catalogo.domain.ports.in.BuscarProfesionalesPort;
 import com.example.svccatalogo.catalogo.infrastructure.web.dto.ProfesionalResponse;
 import org.springframework.beans.propertyeditors.CustomBooleanEditor;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -17,6 +18,8 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
+import java.time.LocalDate;
+import java.time.LocalTime;
 
 @RestController
 @RequestMapping("/api/catalogo/profesionales")
@@ -37,13 +40,17 @@ public class ProfesionalController {
     public ResponseEntity<List<ProfesionalResponse>> buscarProfesionales(
             @RequestParam(name = "categoriaId", required = false) Long categoriaId,
             @RequestParam(name = "nombre", required = false) String nombre,
-            @RequestParam(name = "habilitado", required = false) Boolean habilitado) {
+            @RequestParam(name = "habilitado", required = false) Boolean habilitado,
+            @RequestParam(name = "fecha", required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fecha,
+            @RequestParam(name = "hora", required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.TIME) LocalTime hora) {
 
         if (categoriaId != null && categoriaId <= 0) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "categoriaId debe ser mayor que cero");
         }
 
-        var criterios = new CriteriosBusquedaProfesional(categoriaId, nombre, habilitado);
+        var criterios = new CriteriosBusquedaProfesional(categoriaId, nombre, habilitado, fecha, hora);
         List<ProfesionalResponse> respuesta = buscarProfesionalesPort.buscarProfesionales(criterios)
                 .stream()
                 .map(this::toResponse)

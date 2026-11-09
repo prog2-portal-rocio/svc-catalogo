@@ -32,6 +32,8 @@ import java.nio.charset.StandardCharsets;
 import java.security.KeyPair;
 import java.security.SecureRandom;
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.Base64;
 import java.util.Date;
 import java.util.List;
@@ -59,6 +61,36 @@ class JwtSecurityHttpTest {
 
     @MockitoBean
     private BuscarProfesionalesPort buscarPort;
+
+    @Test
+    void disponibilidadSinTokenDevuelve401() throws Exception {
+        mockMvc.perform(get(PROFESIONALES).param("fecha", "2026-11-09").param("hora", "09:00"))
+                .andExpect(status().isUnauthorized());
+
+        verifyNoInteractions(buscarPort);
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"", "catalogo:sync:read", "catalogo:read"})
+    void disponibilidadConservaLaAutorizacionPorScope(String scope) throws Exception {
+        String token = firmar(claimsValidos().claim("scope", scope).build());
+        var criterios = new CriteriosBusquedaProfesional(null, null, null,
+                LocalDate.of(2026, 11, 9), LocalTime.of(9, 0));
+        boolean autorizado = "catalogo:read".equals(scope);
+        if (autorizado) {
+            when(buscarPort.buscarProfesionales(criterios)).thenReturn(List.of());
+        }
+
+        mockMvc.perform(get(PROFESIONALES).param("fecha", "2026-11-09").param("hora", "09:00")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
+                .andExpect(status().is(autorizado ? 200 : 403));
+
+        if (autorizado) {
+            verify(buscarPort).buscarProfesionales(criterios);
+        } else {
+            verifyNoInteractions(buscarPort);
+        }
+    }
 
     @Test
     void busquedaRequiereToken() throws Exception {

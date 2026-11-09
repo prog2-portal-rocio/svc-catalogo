@@ -2,8 +2,11 @@
 package com.example.svccatalogo.catalogo.domain.model;
 
 import java.time.DayOfWeek;
+import java.time.Duration;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.LocalTime;
+import java.util.Objects;
 
 public class HorarioSemanal {
 
@@ -47,6 +50,26 @@ public class HorarioSemanal {
         this.enabled = enabled;
         this.createdAt = createdAt;
         this.updatedAt = updatedAt;
+    }
+
+    public boolean tieneBloqueDisponible(LocalDate fecha, LocalTime hora) {
+        Objects.requireNonNull(fecha, "La fecha es obligatoria");
+        if (!enabled || dayOfWeek != fecha.getDayOfWeek()) {
+            return false;
+        }
+
+        Duration duracion = Duration.ofMinutes(slotDurationMinutes);
+        if (Duration.between(startTime, endTime).compareTo(duracion) < 0) {
+            return false;
+        }
+        if (hora == null) {
+            return true;
+        }
+
+        Duration desdeInicio = Duration.between(startTime, hora);
+        return !desdeInicio.isNegative()
+                && Duration.between(hora, endTime).compareTo(duracion) >= 0
+                && desdeInicio.toNanos() % duracion.toNanos() == 0;
     }
 
     public Long getId() { return id; }

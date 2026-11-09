@@ -4,10 +4,19 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.NullAndEmptySource;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.junit.jupiter.api.Test;
+import java.time.LocalTime;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 class CriteriosBusquedaProfesionalTest {
+
+    @Test
+    void rechazaHoraSinFecha() {
+        LocalTime hora = LocalTime.of(9, 0);
+        assertThrows(IllegalArgumentException.class,
+                () -> new CriteriosBusquedaProfesional(null, null, null, null, hora));
+    }
 
     @ParameterizedTest
     @NullAndEmptySource
