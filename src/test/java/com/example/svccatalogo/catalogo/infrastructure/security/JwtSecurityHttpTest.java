@@ -1,8 +1,11 @@
 package com.example.svccatalogo.catalogo.infrastructure.security;
 
 import com.example.svccatalogo.catalogo.domain.model.EstadoSincronizacion;
+import com.example.svccatalogo.catalogo.domain.model.CriteriosBusquedaProfesional;
+import com.example.svccatalogo.catalogo.domain.ports.in.BuscarProfesionalesPort;
 import com.example.svccatalogo.catalogo.domain.ports.in.ConsultarEstadoSincronizacionPort;
 import com.example.svccatalogo.catalogo.infrastructure.web.controller.EstadoSincronizacionController;
+import com.example.svccatalogo.catalogo.infrastructure.web.controller.ProfesionalController;
 import com.nimbusds.jose.JOSEException;
 import com.nimbusds.jose.JWSAlgorithm;
 import com.nimbusds.jose.JWSHeader;
@@ -40,18 +43,77 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-@WebMvcTest(EstadoSincronizacionController.class)
+@WebMvcTest({EstadoSincronizacionController.class, ProfesionalController.class})
 @Import({SecurityConfig.class, JwtConfig.class})
 @ContextConfiguration(initializers = JwtTestContextInitializer.class)
 class JwtSecurityHttpTest {
 
     private static final String ESTADO = "/api/catalogo/sincronizacion/estado";
+    private static final String PROFESIONALES = "/api/catalogo/profesionales";
 
     @Autowired
     private MockMvc mockMvc;
 
     @MockitoBean
     private ConsultarEstadoSincronizacionPort estadoPort;
+
+    @MockitoBean
+    private BuscarProfesionalesPort buscarPort;
+
+    @Test
+    void busquedaRequiereToken() throws Exception {
+        mockMvc.perform(get(PROFESIONALES)).andExpect(status().isUnauthorized());
+
+        verifyNoInteractions(buscarPort);
+    }
+
+    @Test
+    void busquedaRechazaTokenInvalido() throws Exception {
+        mockMvc.perform(get(PROFESIONALES).header(HttpHeaders.AUTHORIZATION, "Bearer invalido"))
+                .andExpect(status().isUnauthorized());
+
+        verifyNoInteractions(buscarPort);
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"", "catalogo:sync:read", "catalogo:read-extra"})
+    void busquedaRequierePermisoDeLectura(String scope) throws Exception {
+        String token = firmar(claimsValidos().claim("scope", scope).build());
+
+        mockMvc.perform(get(PROFESIONALES).header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
+                .andExpect(status().isForbidden());
+
+        verifyNoInteractions(buscarPort);
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"catalogo:read", "catalogo:read catalogo:sync:read"})
+    void busquedaPermiteTokenConPermisoDeLectura(String scope) throws Exception {
+        String token = firmar(claimsValidos().claim("scope", scope).build());
+        var criterios = new CriteriosBusquedaProfesional(null, null, null);
+        when(buscarPort.buscarProfesionales(criterios)).thenReturn(List.of());
+
+        mockMvc.perform(get(PROFESIONALES).header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(content().json("[]"))
+                .andExpect(result -> assertNull(result.getRequest().getSession(false)))
+                .andExpect(header().doesNotExist(HttpHeaders.SET_COOKIE));
+
+        verify(buscarPort).buscarProfesionales(criterios);
+        verifyNoInteractions(estadoPort);
+    }
+
+    @Test
+    void busquedaNoAutorizaOtrosMetodosNiSubrutas() throws Exception {
+        String token = firmar(claimsValidos().claim("scope", "catalogo:read").build());
+
+        mockMvc.perform(post(PROFESIONALES).header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(get(PROFESIONALES + "/10").header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
+                .andExpect(status().isForbidden());
+
+        verifyNoInteractions(buscarPort);
+    }
 
     @Test
     void rechazaSolicitudSinToken() throws Exception {
