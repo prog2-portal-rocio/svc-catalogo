@@ -2,8 +2,13 @@ package com.example.svccatalogo.catalogo.infrastructure.web.controller;
 
 import com.example.svccatalogo.catalogo.domain.model.CriteriosBusquedaProfesional;
 import com.example.svccatalogo.catalogo.domain.model.Profesional;
+import com.example.svccatalogo.catalogo.domain.model.HorarioSemanal;
+import com.example.svccatalogo.catalogo.domain.ports.in.ConsultarProfesionalPort;
+import com.example.svccatalogo.catalogo.domain.ports.in.ConsultarHorariosProfesionalPort;
 import com.example.svccatalogo.catalogo.domain.ports.in.BuscarProfesionalesPort;
 import com.example.svccatalogo.catalogo.infrastructure.web.dto.ProfesionalResponse;
+import com.example.svccatalogo.catalogo.infrastructure.web.dto.ProfesionalDetalleResponse;
+import com.example.svccatalogo.catalogo.infrastructure.web.dto.HorarioSemanalResponse;
 import org.springframework.beans.propertyeditors.CustomBooleanEditor;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
@@ -12,6 +17,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.WebDataBinder;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.InitBinder;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -26,9 +32,15 @@ import java.time.LocalTime;
 public class ProfesionalController {
 
     private final BuscarProfesionalesPort buscarProfesionalesPort;
+    private final ConsultarProfesionalPort consultarProfesionalPort;
+    private final ConsultarHorariosProfesionalPort consultarHorariosPort;
 
-    public ProfesionalController(BuscarProfesionalesPort buscarProfesionalesPort) {
+    public ProfesionalController(BuscarProfesionalesPort buscarProfesionalesPort,
+                                 ConsultarProfesionalPort consultarProfesionalPort,
+                                 ConsultarHorariosProfesionalPort consultarHorariosPort) {
         this.buscarProfesionalesPort = buscarProfesionalesPort;
+        this.consultarProfesionalPort = consultarProfesionalPort;
+        this.consultarHorariosPort = consultarHorariosPort;
     }
 
     @InitBinder
@@ -56,6 +68,33 @@ public class ProfesionalController {
                 .map(this::toResponse)
                 .toList();
         return ResponseEntity.ok(respuesta);
+    }
+
+    @GetMapping(value = "/{id}", produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<ProfesionalDetalleResponse> consultarProfesional(@PathVariable("id") Long id) {
+        var detalle = consultarProfesionalPort.consultarProfesional(id);
+        var profesional = detalle.profesional();
+        var categoria = detalle.categoria();
+        var respuesta = new ProfesionalDetalleResponse(
+                profesional.getId(), profesional.getCategoryId(), profesional.getFirstName(),
+                profesional.getLastName(), profesional.isEnabled(), profesional.getCreatedAt(),
+                profesional.getUpdatedAt(), new ProfesionalDetalleResponse.CategoriaResponse(
+                        categoria.getId(), categoria.getName(), categoria.getDescription(),
+                        categoria.isEnabled(), categoria.getCreatedAt(), categoria.getUpdatedAt()));
+        return ResponseEntity.ok(respuesta);
+    }
+
+    @GetMapping(value = "/{id}/horarios", produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<List<HorarioSemanalResponse>> consultarHorarios(@PathVariable("id") Long id) {
+        return ResponseEntity.ok(consultarHorariosPort.consultarHorarios(id).stream()
+                .map(this::toHorarioResponse).toList());
+    }
+
+    private HorarioSemanalResponse toHorarioResponse(HorarioSemanal horario) {
+        return new HorarioSemanalResponse(
+                horario.getId(), horario.getProfessionalId(), horario.getDayOfWeek(), horario.getStartTime(),
+                horario.getEndTime(), horario.getSlotDurationMinutes(), horario.isEnabled(),
+                horario.getCreatedAt(), horario.getUpdatedAt());
     }
 
     private ProfesionalResponse toResponse(Profesional profesional) {

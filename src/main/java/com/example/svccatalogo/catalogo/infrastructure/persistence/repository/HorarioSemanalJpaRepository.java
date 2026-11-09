@@ -6,6 +6,8 @@ import java.time.DayOfWeek;
 import java.util.List;
 
 public interface HorarioSemanalJpaRepository extends JpaRepository<HorarioSemanalEntity, Long> {
+    List<HorarioSemanalEntity> findByProfessionalIdOrderByIdAsc(Long profesionalId);
+
     List<HorarioSemanalEntity> findByProfessionalIdInAndDayOfWeekAndEnabledTrue(
             List<Long> profesionalIds, DayOfWeek dia);
 }
