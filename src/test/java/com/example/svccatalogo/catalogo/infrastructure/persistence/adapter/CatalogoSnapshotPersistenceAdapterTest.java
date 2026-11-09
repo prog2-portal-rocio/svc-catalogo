@@ -1,5 +1,6 @@
 package com.example.svccatalogo.catalogo.infrastructure.persistence.adapter;
 
+import com.example.svccatalogo.catalogo.infrastructure.security.JwtTestContextInitializer;
 import com.example.svccatalogo.catalogo.domain.model.Categoria;
 import com.example.svccatalogo.catalogo.domain.model.Profesional;
 import com.example.svccatalogo.catalogo.domain.model.HorarioSemanal;
@@ -9,6 +10,7 @@ import com.example.svccatalogo.catalogo.domain.ports.out.ProfesionalRepositoryPo
 import com.example.svccatalogo.catalogo.domain.ports.out.HorarioSemanalRepositoryPort;
 import com.example.svccatalogo.catalogo.domain.ports.out.EstadoSincronizacionRepositoryPort;
 import org.junit.jupiter.api.Test;
+import org.springframework.test.context.ContextConfiguration;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
@@ -31,6 +33,7 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+@ContextConfiguration(initializers = JwtTestContextInitializer.class)
 @SpringBootTest
 @Testcontainers
 class CatalogoSnapshotPersistenceAdapterTest {

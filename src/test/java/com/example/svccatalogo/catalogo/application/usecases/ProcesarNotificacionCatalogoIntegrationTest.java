@@ -1,5 +1,6 @@
 package com.example.svccatalogo.catalogo.application.usecases;
 
+import com.example.svccatalogo.catalogo.infrastructure.security.JwtTestContextInitializer;
 import com.example.svccatalogo.catalogo.domain.model.NotificacionCatalogo;
 import com.example.svccatalogo.catalogo.domain.model.CambiosCatalogo;
 import com.example.svccatalogo.catalogo.domain.model.Categoria;
@@ -7,6 +8,7 @@ import com.example.svccatalogo.catalogo.domain.model.Profesional;
 import com.example.svccatalogo.catalogo.domain.ports.out.CatalogoRedisPort;
 import com.example.svccatalogo.catalogo.infrastructure.kafka.CatalogoKafkaConsumerAdapter;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
+import org.springframework.test.context.ContextConfiguration;
 import org.springframework.kafka.support.Acknowledgment;
 import com.example.svccatalogo.catalogo.domain.model.SnapshotCatalogo;
 import com.example.svccatalogo.catalogo.domain.ports.in.ProcesarNotificacionCatalogoUseCase;
@@ -39,6 +41,7 @@ import java.time.Instant;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
+@ContextConfiguration(initializers = JwtTestContextInitializer.class)
 @SpringBootTest
 @Testcontainers
 class ProcesarNotificacionCatalogoIntegrationTest {

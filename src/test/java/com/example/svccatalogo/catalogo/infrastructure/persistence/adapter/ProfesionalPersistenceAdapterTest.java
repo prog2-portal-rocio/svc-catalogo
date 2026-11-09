@@ -1,5 +1,6 @@
 package com.example.svccatalogo.catalogo.infrastructure.persistence.adapter;
 
+import com.example.svccatalogo.catalogo.infrastructure.security.JwtTestContextInitializer;
 import com.example.svccatalogo.catalogo.domain.model.Categoria;
 import com.example.svccatalogo.catalogo.domain.model.CriteriosBusquedaProfesional;
 import com.example.svccatalogo.catalogo.domain.model.Profesional;
@@ -10,6 +11,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.springframework.test.context.ContextConfiguration;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
@@ -25,6 +27,7 @@ import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+@ContextConfiguration(initializers = JwtTestContextInitializer.class)
 @SpringBootTest
 @Testcontainers
 @Transactional

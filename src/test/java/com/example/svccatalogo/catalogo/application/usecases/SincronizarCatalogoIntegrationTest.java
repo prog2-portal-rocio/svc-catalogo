@@ -1,5 +1,6 @@
 package com.example.svccatalogo.catalogo.application.usecases;
 
+import com.example.svccatalogo.catalogo.infrastructure.security.JwtTestContextInitializer;
 import com.example.svccatalogo.catalogo.domain.model.Categoria;
 import com.example.svccatalogo.catalogo.domain.model.SnapshotCatalogo;
 import com.example.svccatalogo.catalogo.domain.ports.in.SincronizarCatalogoPort;
@@ -8,6 +9,7 @@ import com.example.svccatalogo.catalogo.domain.ports.out.CategoriaRepositoryPort
 import com.example.svccatalogo.catalogo.domain.ports.out.EstadoSincronizacionRepositoryPort;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.test.context.ContextConfiguration;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
@@ -23,6 +25,7 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
+@ContextConfiguration(initializers = JwtTestContextInitializer.class)
 @SpringBootTest
 @Testcontainers
 class SincronizarCatalogoIntegrationTest {
