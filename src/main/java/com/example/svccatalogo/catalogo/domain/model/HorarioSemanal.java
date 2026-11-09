@@ -54,7 +54,7 @@ public class HorarioSemanal {
 
     public boolean tieneBloqueDisponible(LocalDate fecha, LocalTime hora) {
         Objects.requireNonNull(fecha, "La fecha es obligatoria");
-        if (!enabled || dayOfWeek != fecha.getDayOfWeek()) {
+        if (!enabled || !dayOfWeek.equals(fecha.getDayOfWeek())) {
             return false;
         }
 
