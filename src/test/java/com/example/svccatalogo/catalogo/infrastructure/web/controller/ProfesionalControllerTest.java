@@ -3,6 +3,8 @@ package com.example.svccatalogo.catalogo.infrastructure.web.controller;
 import com.example.svccatalogo.catalogo.domain.model.CriteriosBusquedaProfesional;
 import com.example.svccatalogo.catalogo.domain.model.Profesional;
 import com.example.svccatalogo.catalogo.domain.ports.in.BuscarProfesionalesPort;
+import com.example.svccatalogo.catalogo.domain.ports.in.ConsultarProfesionalPort;
+import com.example.svccatalogo.catalogo.domain.ports.in.ConsultarHorariosProfesionalPort;
 import com.example.svccatalogo.catalogo.infrastructure.web.handler.ProfesionalExceptionHandler;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -34,7 +36,8 @@ class ProfesionalControllerTest {
     @BeforeEach
     void configurar() {
         buscarPort = mock(BuscarProfesionalesPort.class);
-        mockMvc = MockMvcBuilders.standaloneSetup(new ProfesionalController(buscarPort))
+        mockMvc = MockMvcBuilders.standaloneSetup(new ProfesionalController(buscarPort,
+                        mock(ConsultarProfesionalPort.class), mock(ConsultarHorariosProfesionalPort.class)))
                 .setControllerAdvice(new ProfesionalExceptionHandler())
                 .build();
     }

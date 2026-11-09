@@ -12,6 +12,8 @@ public interface HorarioSemanalRepositoryPort {
 
     List<HorarioSemanal> findAll();
 
+    List<HorarioSemanal> buscarPorProfesional(Long profesionalId);
+
     List<HorarioSemanal> buscarHabilitadosPorProfesionalesYDia(List<Long> profesionalIds, DayOfWeek dia);
 
     HorarioSemanal save(HorarioSemanal horario);

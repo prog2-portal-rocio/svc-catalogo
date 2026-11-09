@@ -33,6 +33,14 @@ public class HorarioSemanalPersistenceAdapter implements HorarioSemanalRepositor
     }
 
     @Override
+    public List<HorarioSemanal> buscarPorProfesional(Long profesionalId) {
+        return repository.findByProfessionalIdOrderByIdAsc(profesionalId)
+                .stream()
+                .map(HorarioSemanalMapper::toDomain)
+                .toList();
+    }
+
+    @Override
     public List<HorarioSemanal> buscarHabilitadosPorProfesionalesYDia(List<Long> profesionalIds, DayOfWeek dia) {
         if (profesionalIds.isEmpty()) {
             return List.of();

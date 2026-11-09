@@ -13,6 +13,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -65,6 +67,101 @@ class ProfesionalPersistenceAdapterTest {
 
     @Autowired
     private HorarioSemanalRepositoryPort horarioRepository;
+
+    @ParameterizedTest
+    @CsvSource({"10,true,true", "11,false,true", "14,true,false"})
+    void apiConsultaProfesionalYHabilitacionDeSuCategoria(Long id, boolean habilitado,
+                                                       boolean categoriaHabilitada) throws Exception {
+        cargarProfesionalesParaBusqueda();
+        var profesional = profesionalRepository.findById(id).orElseThrow();
+
+        mockMvc.perform(consultaIntegracion("/" + id))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(id))
+                .andExpect(jsonPath("$.categoryId").value(profesional.getCategoryId()))
+                .andExpect(jsonPath("$.firstName").value(profesional.getFirstName()))
+                .andExpect(jsonPath("$.lastName").value(profesional.getLastName()))
+                .andExpect(jsonPath("$.enabled").value(habilitado))
+                .andExpect(jsonPath("$.category.id").value(profesional.getCategoryId()))
+                .andExpect(jsonPath("$.category.name").isString())
+                .andExpect(jsonPath("$.category.enabled").value(categoriaHabilitada));
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"/999", "/999/horarios"})
+    void apiConsultasDeIntegracionDevuelven404ParaProfesionalInexistente(String sufijo) throws Exception {
+        mockMvc.perform(consultaIntegracion(sufijo))
+                .andExpect(status().isNotFound())
+                .andExpect(content().contentTypeCompatibleWith("application/problem+json"))
+                .andExpect(jsonPath("$.status").value(404))
+                .andExpect(jsonPath("$.detail").value("No existe el profesional con ID 999"));
+    }
+
+    @ParameterizedTest
+    @MethodSource("idsInvalidosDeIntegracion")
+    void apiConsultasDeIntegracionRechazanIdsInvalidos(String sufijo) throws Exception {
+        mockMvc.perform(consultaIntegracion(sufijo))
+                .andExpect(status().isBadRequest())
+                .andExpect(content().contentTypeCompatibleWith("application/problem+json"))
+                .andExpect(jsonPath("$.status").value(400));
+    }
+
+    @Test
+    void apiHorariosIncluyeDeshabilitadosYNoMezclaProfesionales() throws Exception {
+        cargarAgendaParaDisponibilidad();
+
+        mockMvc.perform(consultaIntegracion("/17/horarios"))
+                .andExpect(status().isOk())
+                .andExpect(content().json("""
+                        [{"id":8,"professionalId":17,"dayOfWeek":"MONDAY",
+                          "startTime":"09:00:00","endTime":"12:00:00","slotDurationMinutes":30,
+                          "enabled":false,"createdAt":null,"updatedAt":null},
+                         {"id":9,"professionalId":17,"dayOfWeek":"TUESDAY",
+                          "startTime":"09:00:00","endTime":"12:00:00","slotDurationMinutes":30,
+                          "enabled":true,"createdAt":null,"updatedAt":null}]
+                        """, org.springframework.test.json.JsonCompareMode.STRICT));
+    }
+
+    @Test
+    void apiProfesionalSinHorariosDevuelve200YListaVacia() throws Exception {
+        cargarProfesionalesParaBusqueda();
+
+        mockMvc.perform(consultaIntegracion("/10/horarios"))
+                .andExpect(status().isOk())
+                .andExpect(content().json("[]"));
+    }
+
+    @ParameterizedTest
+    @ValueSource(longs = {11, 14})
+    void apiHorariosNoOcultaReglasPorHabilitacionDeProfesionalOCategoria(long id) throws Exception {
+        cargarAgendaParaDisponibilidad();
+
+        mockMvc.perform(consultaIntegracion("/" + id + "/horarios"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].professionalId").value(id));
+    }
+
+    @Test
+    void apiHorariosDevuelveLasReglasAunqueTodasEstenDeshabilitadas() throws Exception {
+        cargarProfesionalesParaBusqueda();
+        guardarHorario(1L, 10L, DayOfWeek.MONDAY, "09:00", "12:00", 30, false);
+
+        mockMvc.perform(consultaIntegracion("/10/horarios"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].enabled").value(false));
+    }
+
+    private MockHttpServletRequestBuilder consultaIntegracion(String sufijo) {
+        return get("/api/catalogo/profesionales" + sufijo)
+                .with(jwt().authorities(new SimpleGrantedAuthority("SCOPE_catalogo:read")));
+    }
+
+    private static Stream<String> idsInvalidosDeIntegracion() {
+        return Stream.of("0", "-1", "abc", "1.5", "9223372036854775808")
+                .flatMap(id -> Stream.of("/" + id, "/" + id + "/horarios"));
+    }
 
     @Test
     void guardaYRecuperaUnProfesionalConSuCategoria() {

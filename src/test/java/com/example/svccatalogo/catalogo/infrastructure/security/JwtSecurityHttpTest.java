@@ -2,7 +2,12 @@ package com.example.svccatalogo.catalogo.infrastructure.security;
 
 import com.example.svccatalogo.catalogo.domain.model.EstadoSincronizacion;
 import com.example.svccatalogo.catalogo.domain.model.CriteriosBusquedaProfesional;
+import com.example.svccatalogo.catalogo.domain.model.Profesional;
+import com.example.svccatalogo.catalogo.domain.model.Categoria;
+import com.example.svccatalogo.catalogo.domain.model.ProfesionalConCategoria;
 import com.example.svccatalogo.catalogo.domain.ports.in.BuscarProfesionalesPort;
+import com.example.svccatalogo.catalogo.domain.ports.in.ConsultarProfesionalPort;
+import com.example.svccatalogo.catalogo.domain.ports.in.ConsultarHorariosProfesionalPort;
 import com.example.svccatalogo.catalogo.domain.ports.in.ConsultarEstadoSincronizacionPort;
 import com.example.svccatalogo.catalogo.infrastructure.web.controller.EstadoSincronizacionController;
 import com.example.svccatalogo.catalogo.infrastructure.web.controller.ProfesionalController;
@@ -42,6 +47,7 @@ import java.util.stream.Stream;
 import static org.mockito.Mockito.*;
 import static org.hamcrest.Matchers.startsWith;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -61,6 +67,71 @@ class JwtSecurityHttpTest {
 
     @MockitoBean
     private BuscarProfesionalesPort buscarPort;
+
+    @MockitoBean
+    private ConsultarProfesionalPort consultarProfesionalPort;
+
+    @MockitoBean
+    private ConsultarHorariosProfesionalPort consultarHorariosPort;
+
+    @ParameterizedTest
+    @ValueSource(strings = {"/api/catalogo/profesionales/10", "/api/catalogo/profesionales/10/horarios"})
+    void consultasDeIntegracionRequierenTokenValido(String ruta) throws Exception {
+        mockMvc.perform(get(ruta)).andExpect(status().isUnauthorized());
+        mockMvc.perform(get(ruta).header(HttpHeaders.AUTHORIZATION, "Bearer invalido"))
+                .andExpect(status().isUnauthorized());
+
+        verifyNoInteractions(consultarProfesionalPort, consultarHorariosPort);
+    }
+
+    @ParameterizedTest
+    @MethodSource("consultasSinPermiso")
+    void consultasDeIntegracionRechazanPermisosInsuficientes(String ruta, String scope) throws Exception {
+        String token = firmar(claimsValidos().claim("scope", scope).build());
+
+        mockMvc.perform(get(ruta).header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
+                .andExpect(status().isForbidden());
+
+        verifyNoInteractions(consultarProfesionalPort, consultarHorariosPort);
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"/api/catalogo/profesionales/10", "/api/catalogo/profesionales/10/horarios"})
+    void consultasDeIntegracionAceptanJwtRs256ConCatalogoRead(String ruta) throws Exception {
+        String token = firmar(claimsValidos().claim("scope", "catalogo:read").build());
+        if (ruta.endsWith("/horarios")) {
+            when(consultarHorariosPort.consultarHorarios(10L)).thenReturn(List.of());
+        } else {
+            when(consultarProfesionalPort.consultarProfesional(10L)).thenReturn(new ProfesionalConCategoria(
+                    new Profesional(10L, 1L, "Ana", "Garcia", true, null, null),
+                    new Categoria(1L, "Peluqueria", null, true, null, null)));
+        }
+
+        mockMvc.perform(get(ruta).header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andExpect(result -> assertNull(result.getRequest().getSession(false)))
+                .andExpect(header().doesNotExist(HttpHeaders.SET_COOKIE));
+
+        verifyNoInteractions(buscarPort, estadoPort);
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"/api/catalogo/profesionales/10", "/api/catalogo/profesionales/10/horarios"})
+    void consultasDeIntegracionNoHabilitanOtrosMetodos(String ruta) throws Exception {
+        String token = firmar(claimsValidos().claim("scope", "catalogo:read").build());
+        mockMvc.perform(post(ruta).with(csrf())
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
+                .andExpect(status().isForbidden());
+
+        verifyNoInteractions(consultarProfesionalPort, consultarHorariosPort);
+    }
+
+    private static Stream<Arguments> consultasSinPermiso() {
+        return Stream.of("/api/catalogo/profesionales/10", "/api/catalogo/profesionales/10/horarios")
+                .flatMap(ruta -> Stream.of("", "catalogo:sync:read", "catalogo:read-extra")
+                        .map(scope -> Arguments.of(ruta, scope)));
+    }
 
     @Test
     void disponibilidadSinTokenDevuelve401() throws Exception {
@@ -141,7 +212,7 @@ class JwtSecurityHttpTest {
 
         mockMvc.perform(post(PROFESIONALES).header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
                 .andExpect(status().isForbidden());
-        mockMvc.perform(get(PROFESIONALES + "/10").header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
+        mockMvc.perform(get(PROFESIONALES + "/10/otra").header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
                 .andExpect(status().isForbidden());
 
         verifyNoInteractions(buscarPort);
@@ -226,7 +297,8 @@ class JwtSecurityHttpTest {
     @ParameterizedTest
     @ValueSource(strings = {
             "/api/profesionales", "/api/catalogo/sincronizacion/estado/otra", "/",
-            "/.well-known/oauth-protected-resource", "/.well-known/oauth-protected-resource/api"
+            "/.well-known/oauth-protected-resource", "/.well-known/oauth-protected-resource/api",
+            "/api/catalogo/profesionales/10/otra", "/api/catalogo/profesionales/10/horarios/1"
     })
     void deniegaRutasNoAutorizadasAunqueElTokenSeaValido(String ruta) throws Exception {
         String token = firmar(claimsValidos().build());
