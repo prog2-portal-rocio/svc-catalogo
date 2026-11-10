@@ -18,7 +18,7 @@ import java.time.Instant;
 import static org.junit.jupiter.api.Assertions.*;
 
 @ContextConfiguration(initializers = JwtTestContextInitializer.class)
-@SpringBootTest
+@SpringBootTest(properties = "catalogo.reconciliacion-inicio.enabled=false")
 @Testcontainers
 @Transactional
 class EstadoSincronizacionPersistenceAdapterTest {

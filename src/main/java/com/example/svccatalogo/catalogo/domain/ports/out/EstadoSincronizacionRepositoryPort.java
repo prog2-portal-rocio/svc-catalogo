@@ -6,5 +6,8 @@ public interface EstadoSincronizacionRepositoryPort {
 
     EstadoSincronizacion obtenerEstado();
 
+    // Mantiene el bloqueo hasta finalizar la transaccion del caso de uso.
+    EstadoSincronizacion obtenerEstadoConBloqueo();
+
     EstadoSincronizacion guardarEstado(EstadoSincronizacion estado);
 }

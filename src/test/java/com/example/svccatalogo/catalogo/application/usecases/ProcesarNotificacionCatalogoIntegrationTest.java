@@ -14,7 +14,9 @@ import com.example.svccatalogo.catalogo.domain.model.SnapshotCatalogo;
 import com.example.svccatalogo.catalogo.domain.ports.in.ProcesarNotificacionCatalogoUseCase;
 import com.example.svccatalogo.catalogo.domain.ports.in.ConsultarEstadoSincronizacionPort;
 import com.example.svccatalogo.catalogo.domain.ports.in.SincronizarCatalogoIncrementalPort;
+import com.example.svccatalogo.catalogo.domain.ports.in.ReconciliarCatalogoPort;
 import com.example.svccatalogo.catalogo.domain.ports.out.EventoCatalogoProcesadoPort;
+import com.example.svccatalogo.catalogo.domain.ports.out.EstadoSincronizacionRepositoryPort;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 import com.example.svccatalogo.catalogo.domain.ports.out.CatalogoRemotoPort;
@@ -33,6 +35,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.LongStream;
 
 import java.util.List;
 import java.util.Optional;
@@ -40,9 +43,10 @@ import java.time.Instant;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
+import static org.awaitility.Awaitility.await;
 
 @ContextConfiguration(initializers = JwtTestContextInitializer.class)
-@SpringBootTest
+@SpringBootTest(properties = "catalogo.reconciliacion-inicio.enabled=false")
 @Testcontainers
 class ProcesarNotificacionCatalogoIntegrationTest {
 
@@ -77,6 +81,12 @@ class ProcesarNotificacionCatalogoIntegrationTest {
 
     @Autowired
     private PlatformTransactionManager transactionManager;
+
+    @Autowired
+    private EstadoSincronizacionRepositoryPort estadoRepository;
+
+    @Autowired
+    private ReconciliarCatalogoPort reconciliarPort;
 
     @BeforeEach
     void prepararBaseDeDatos() {
@@ -259,7 +269,7 @@ class ProcesarNotificacionCatalogoIntegrationTest {
 
         // Recrear el servicio sin compartir memoria del procesamiento anterior.
         var nuevoServicio = new ProcesarNotificacionCatalogoService(
-                eventosPort, estadoPort, incrementalPort);
+                eventosPort, estadoPort, incrementalPort, estadoRepository);
         new TransactionTemplate(transactionManager).executeWithoutResult(
                 estado -> nuevoServicio.procesar(notificacion));
 
@@ -278,6 +288,249 @@ class ProcesarNotificacionCatalogoIntegrationTest {
         Instant fecha = Instant.parse("2026-09-10T13:44:59Z");
         when(redisPort.obtenerCategoria(1L)).thenReturn(Optional.of(
                 new Categoria(1L, "Categoria actualizada", null, true, fecha, fecha)));
+    }
+
+    @Test
+    void reconciliaSinVersionLocalMedianteSnapshotSinRecibirKafka() {
+        when(catalogoRemotoPort.obtenerSnapshot()).thenReturn(snapshot(7L));
+        when(redisPort.obtenerVersionActual()).thenReturn(7L);
+
+        reconciliarPort.reconciliarCatalogo();
+
+        assertEquals(7L, versionAplicada());
+        assertEquals(0, cantidadEventosProcesados());
+        verify(catalogoRemotoPort).obtenerSnapshot();
+        verify(redisPort, never()).obtenerCambios(anyLong());
+    }
+
+    @Test
+    void reconciliaVersionAtrasadaConElIncrementalExistente() {
+        configurarIncremento(6L);
+
+        reconciliarPort.reconciliarCatalogo();
+
+        assertEquals(6L, versionAplicada());
+        assertEquals(1L, cantidadCategorias());
+        assertEquals(0, cantidadEventosProcesados());
+        verifyNoInteractions(catalogoRemotoPort);
+    }
+
+    @Test
+    void reconciliaHistorialDiscontinuoMedianteSnapshot() {
+        configurarIncremento(8L);
+        when(redisPort.obtenerVersionMasAntiguaDisponible()).thenReturn(6L);
+        when(catalogoRemotoPort.obtenerSnapshot()).thenReturn(snapshot(8L));
+
+        reconciliarPort.reconciliarCatalogo();
+
+        assertEquals(8L, versionAplicada());
+        verify(catalogoRemotoPort).obtenerSnapshot();
+        verify(redisPort, never()).obtenerCambios(anyLong());
+    }
+
+    @Test
+    void reconciliaCambiosFaltantesMedianteSnapshot() {
+        configurarIncremento(7L);
+        when(redisPort.obtenerCambios(6L)).thenReturn(Optional.empty());
+        when(catalogoRemotoPort.obtenerSnapshot()).thenReturn(snapshot(7L));
+
+        reconciliarPort.reconciliarCatalogo();
+
+        assertEquals(7L, versionAplicada());
+        verify(catalogoRemotoPort).obtenerSnapshot();
+    }
+
+    @Test
+    void reconciliacionActualizadaNoModificaElEstadoNiLosDatos() {
+        configurarIncremento(5L);
+        jdbcTemplate.update("""
+                UPDATE estado_sincronizacion SET applied_at = '2026-01-01T00:00:00Z',
+                phase = 'SUCCESS', safe_diagnostic = 'Ultima version aplicada' WHERE id = 1
+                """);
+        var estadoAnterior = filaEstado();
+
+        reconciliarPort.reconciliarCatalogo();
+
+        assertEquals(estadoAnterior, filaEstado());
+        assertEquals(0L, cantidadCategorias());
+        verifyNoInteractions(catalogoRemotoPort);
+        verify(redisPort, never()).obtenerVersionMasAntiguaDisponible();
+    }
+
+    @Test
+    void falloTemporalRedisConservaLaVersionYPermiteUnaEjecucionPosterior() {
+        configurarIncremento(6L);
+        when(redisPort.obtenerVersionActual())
+                .thenThrow(new org.springframework.data.redis.RedisConnectionFailureException("No disponible"))
+                .thenReturn(6L);
+        var estadoAnterior = filaEstado();
+
+        assertThrows(RuntimeException.class, reconciliarPort::reconciliarCatalogo);
+
+        assertEquals(estadoAnterior, filaEstado());
+        assertEquals(0L, cantidadCategorias());
+        verify(redisPort).obtenerVersionActual();
+
+        reconciliarPort.reconciliarCatalogo();
+        assertEquals(6L, versionAplicada());
+    }
+
+    @Test
+    void falloRestNoAvanzaLaVersionNiRegistraExito() {
+        when(catalogoRemotoPort.obtenerSnapshot()).thenThrow(new IllegalStateException("REST no disponible"));
+        var estadoAnterior = filaEstado();
+
+        assertThrows(IllegalStateException.class, reconciliarPort::reconciliarCatalogo);
+
+        assertEquals(estadoAnterior, filaEstado());
+        verify(catalogoRemotoPort).obtenerSnapshot();
+        verifyNoInteractions(redisPort);
+    }
+
+    @Test
+    void falloPostgreSQLRevierteElReemplazoYConservaElCatalogoAnterior() {
+        configurarIncremento(6L);
+        when(redisPort.obtenerVersionMasAntiguaDisponible()).thenReturn(6L);
+        jdbcTemplate.update("INSERT INTO categorias (id, name, enabled) VALUES (1, 'Categoria anterior', true)");
+        var snapshotInvalido = new SnapshotCatalogo(6L,
+                List.of(new Categoria(2L, "Nueva categoria", null, true, null, null)),
+                List.of(new Profesional(10L, 999L, "Ana", "Perez", true, null, null)), List.of());
+        when(catalogoRemotoPort.obtenerSnapshot()).thenReturn(snapshotInvalido);
+        var estadoAnterior = filaEstado();
+
+        assertThrows(RuntimeException.class, reconciliarPort::reconciliarCatalogo);
+
+        assertEquals(estadoAnterior, filaEstado());
+        assertEquals("Categoria anterior", jdbcTemplate.queryForObject("SELECT name FROM categorias", String.class));
+        assertEquals(0, cantidadEventosProcesados());
+    }
+
+    @Test
+    void snapshotAnteriorALaVersionPublicadaNoSeConfirma() {
+        configurarIncremento(7L);
+        when(redisPort.obtenerVersionMasAntiguaDisponible()).thenReturn(6L);
+        when(catalogoRemotoPort.obtenerSnapshot()).thenReturn(snapshot(6L));
+        var estadoAnterior = filaEstado();
+
+        assertThrows(IllegalStateException.class, reconciliarPort::reconciliarCatalogo);
+
+        assertEquals(estadoAnterior, filaEstado());
+    }
+
+    @Test
+    void versionLocalSuperiorARedisNoRetrocede() {
+        configurarIncremento(4L);
+        var estadoAnterior = filaEstado();
+
+        assertThrows(IllegalStateException.class, reconciliarPort::reconciliarCatalogo);
+
+        assertEquals(estadoAnterior, filaEstado());
+        verifyNoInteractions(catalogoRemotoPort);
+    }
+
+    @Test
+    void redisCambianteAgotaSoloTresIntentosYRecuperaSnapshot() {
+        configurarIncremento(6L);
+        when(redisPort.obtenerVersionActual()).thenReturn(6L, 7L, 8L, 9L, 10L, 11L, 12L);
+        LongStream.rangeClosed(6, 10).forEach(version ->
+                when(redisPort.obtenerCambios(version)).thenReturn(Optional.of(
+                        new CambiosCatalogo(version, List.of(), List.of(), List.of()))));
+        when(catalogoRemotoPort.obtenerSnapshot()).thenReturn(snapshot(12L));
+
+        reconciliarPort.reconciliarCatalogo();
+
+        assertEquals(12L, versionAplicada());
+        verify(redisPort, times(7)).obtenerVersionActual();
+        verify(catalogoRemotoPort).obtenerSnapshot();
+    }
+
+    @Test
+    void arranqueYEventosDuplicadosConcurrentesCompartenBloqueoHastaElCommit() throws Exception {
+        var leyendoSnapshot = new CountDownLatch(1);
+        var liberarSnapshot = new CountDownLatch(1);
+        when(catalogoRemotoPort.obtenerSnapshot()).thenAnswer(invocacion -> {
+            leyendoSnapshot.countDown();
+            if (!liberarSnapshot.await(15, TimeUnit.SECONDS)) {
+                throw new IllegalStateException("Se agoto la espera de la prueba");
+            }
+            return snapshot(7L);
+        });
+        when(redisPort.obtenerVersionActual()).thenReturn(7L);
+        var ackPrimero = mock(Acknowledgment.class);
+        var ackDuplicado = mock(Acknowledgment.class);
+        var executor = Executors.newFixedThreadPool(3);
+        try {
+            var reconciliacion = executor.submit(reconciliarPort::reconciliarCatalogo);
+            assertTrue(leyendoSnapshot.await(10, TimeUnit.SECONDS));
+            var primero = executor.submit(() -> consumidor.consumir(registro(7L), ackPrimero));
+            var duplicado = executor.submit(() -> consumidor.consumir(registro(7L), ackDuplicado));
+
+            esperarTransaccionesBloqueadas(2);
+            assertEquals(0, cantidadEventosProcesados());
+            assertNull(versionAplicada());
+            verifyNoInteractions(ackPrimero, ackDuplicado);
+
+            liberarSnapshot.countDown();
+            reconciliacion.get(20, TimeUnit.SECONDS);
+            primero.get(20, TimeUnit.SECONDS);
+            duplicado.get(20, TimeUnit.SECONDS);
+
+            assertEquals(7L, versionAplicada());
+            assertEquals(1, cantidadEventosProcesados());
+            verify(ackPrimero).acknowledge();
+            verify(ackDuplicado).acknowledge();
+            verify(catalogoRemotoPort).obtenerSnapshot();
+        } finally {
+            liberarSnapshot.countDown();
+            executor.shutdownNow();
+        }
+    }
+
+    @Test
+    void reconciliacionEsperaAlEventoKafkaQueYaEstaSincronizando() throws Exception {
+        var leyendoSnapshot = new CountDownLatch(1);
+        var liberarSnapshot = new CountDownLatch(1);
+        when(catalogoRemotoPort.obtenerSnapshot()).thenAnswer(invocacion -> {
+            leyendoSnapshot.countDown();
+            if (!liberarSnapshot.await(15, TimeUnit.SECONDS)) {
+                throw new IllegalStateException("Se agoto la espera de la prueba");
+            }
+            return snapshot(7L);
+        });
+        when(redisPort.obtenerVersionActual()).thenReturn(7L);
+        var acknowledgment = mock(Acknowledgment.class);
+        var executor = Executors.newFixedThreadPool(2);
+        try {
+            var evento = executor.submit(() -> consumidor.consumir(registro(7L), acknowledgment));
+            assertTrue(leyendoSnapshot.await(10, TimeUnit.SECONDS));
+            var reconciliacion = executor.submit(reconciliarPort::reconciliarCatalogo);
+
+            esperarTransaccionesBloqueadas(1);
+            verifyNoInteractions(acknowledgment);
+            liberarSnapshot.countDown();
+            evento.get(20, TimeUnit.SECONDS);
+            reconciliacion.get(20, TimeUnit.SECONDS);
+
+            assertEquals(7L, versionAplicada());
+            assertEquals(1, cantidadEventosProcesados());
+            verify(acknowledgment).acknowledge();
+            verify(catalogoRemotoPort).obtenerSnapshot();
+        } finally {
+            liberarSnapshot.countDown();
+            executor.shutdownNow();
+        }
+    }
+
+    private void esperarTransaccionesBloqueadas(int cantidad) {
+        await().atMost(10, TimeUnit.SECONDS).until(() -> jdbcTemplate.queryForObject("""
+                SELECT COUNT(*) FROM pg_stat_activity
+                WHERE datname = current_database() AND wait_event_type = 'Lock'
+                AND query LIKE '%estado_sincronizacion%'
+                """, Integer.class) >= cantidad);
+    }
+
+    private String filaEstado() {
+        return jdbcTemplate.queryForObject("SELECT row_to_json(e)::text FROM estado_sincronizacion e", String.class);
     }
 
     private long cantidadCategorias() {

@@ -5,6 +5,8 @@ import com.example.svccatalogo.catalogo.domain.ports.out.EstadoSincronizacionRep
 import com.example.svccatalogo.catalogo.infrastructure.persistence.mapper.EstadoSincronizacionMapper;
 import com.example.svccatalogo.catalogo.infrastructure.persistence.repository.EstadoSincronizacionJpaRepository;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
 
 @Repository
 public class EstadoSincronizacionPersistenceAdapter
@@ -26,6 +28,15 @@ public class EstadoSincronizacionPersistenceAdapter
                 .orElseThrow(() -> new IllegalStateException(
                         "No existe el estado de sincronizacion del catalogo"
                 ));
+    }
+
+    @Override
+    @Transactional(propagation = Propagation.MANDATORY)
+    public EstadoSincronizacion obtenerEstadoConBloqueo() {
+        return repository.buscarPorIdConBloqueo(ESTADO_ID)
+                .map(EstadoSincronizacionMapper::toDomain)
+                .orElseThrow(() -> new IllegalStateException(
+                        "No existe el estado de sincronizacion del catalogo"));
     }
 
     @Override

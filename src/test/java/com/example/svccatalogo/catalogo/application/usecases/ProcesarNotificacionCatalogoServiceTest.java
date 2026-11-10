@@ -5,6 +5,7 @@ import com.example.svccatalogo.catalogo.domain.model.NotificacionCatalogo;
 import com.example.svccatalogo.catalogo.domain.ports.in.ConsultarEstadoSincronizacionPort;
 import com.example.svccatalogo.catalogo.domain.ports.in.SincronizarCatalogoIncrementalPort;
 import com.example.svccatalogo.catalogo.domain.ports.out.EventoCatalogoProcesadoPort;
+import com.example.svccatalogo.catalogo.domain.ports.out.EstadoSincronizacionRepositoryPort;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -17,17 +18,20 @@ class ProcesarNotificacionCatalogoServiceTest {
     private ConsultarEstadoSincronizacionPort estadoPort;
     private SincronizarCatalogoIncrementalPort sincronizarPort;
     private ProcesarNotificacionCatalogoService service;
+    private EstadoSincronizacionRepositoryPort estadoRepository;
 
     @BeforeEach
     void configurar() {
         eventosPort = mock(EventoCatalogoProcesadoPort.class);
         estadoPort = mock(ConsultarEstadoSincronizacionPort.class);
         sincronizarPort = mock(SincronizarCatalogoIncrementalPort.class);
+        estadoRepository = mock(EstadoSincronizacionRepositoryPort.class);
 
         service = new ProcesarNotificacionCatalogoService(
                 eventosPort,
                 estadoPort,
-                sincronizarPort
+                sincronizarPort,
+                estadoRepository
         );
     }
 
@@ -39,6 +43,9 @@ class ProcesarNotificacionCatalogoServiceTest {
         service.procesar(new NotificacionCatalogo("evento-123", 7L));
 
         verifyNoInteractions(estadoPort, sincronizarPort);
+        var orden = inOrder(estadoRepository, eventosPort);
+        orden.verify(estadoRepository).obtenerEstadoConBloqueo();
+        orden.verify(eventosPort).registrarSiNoExiste("evento-123", 7L);
     }
 
     @Test
