@@ -42,7 +42,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @ContextConfiguration(initializers = JwtTestContextInitializer.class)
-@SpringBootTest
+@SpringBootTest(properties = "catalogo.reconciliacion-inicio.enabled=false")
 @AutoConfigureMockMvc
 @Testcontainers
 @Transactional

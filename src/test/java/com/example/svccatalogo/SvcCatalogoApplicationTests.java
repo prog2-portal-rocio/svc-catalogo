@@ -10,7 +10,7 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.postgresql.PostgreSQLContainer;
 
 @ContextConfiguration(initializers = JwtTestContextInitializer.class)
-@SpringBootTest
+@SpringBootTest(properties = "catalogo.reconciliacion-inicio.enabled=false")
 @Testcontainers
 class SvcCatalogoApplicationTests {
 

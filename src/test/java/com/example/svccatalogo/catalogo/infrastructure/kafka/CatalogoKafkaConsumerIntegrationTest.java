@@ -46,6 +46,7 @@ import static org.mockito.Mockito.*;
 
 @ContextConfiguration(initializers = JwtTestContextInitializer.class)
 @SpringBootTest(properties = {
+        "catalogo.reconciliacion-inicio.enabled=false",
         "catalogo.kafka.topic=catalogo-prueba",
         "spring.kafka.consumer.group-id=catalogo-integracion-test",
         "spring.kafka.consumer.auto-offset-reset=earliest",

@@ -19,7 +19,7 @@ import org.testcontainers.postgresql.PostgreSQLContainer;
 import static org.junit.jupiter.api.Assertions.*;
 
 @ContextConfiguration(initializers = JwtTestContextInitializer.class)
-@SpringBootTest
+@SpringBootTest(properties = "catalogo.reconciliacion-inicio.enabled=false")
 @Testcontainers
 @EnabledIfEnvironmentVariable(
         named = "CATEDRA_API_TOKEN",
