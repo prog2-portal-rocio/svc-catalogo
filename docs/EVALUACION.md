@@ -3,7 +3,7 @@
 
 > Documento **generado automáticamente** por la cátedra de Programación II (UM): RepoSense + análisis de calidad de **7 dimensiones**. **No editar a mano**: se regenera en cada evaluación.
 > Rama evaluada: `main`. Análisis **heurístico** (regex + métricas) + build: es una criba para orientar la revisión, **no una nota**. La **documentación** del repositorio no se evalúa.
-> Generado: 2026-11-17.
+> Generado: 2026-11-18.
 
 ## 1. Veredicto
 
@@ -31,10 +31,10 @@ Criterios de la cátedra (`CRITERIOS-CALIDAD.md`): **Aprobar** se juega con el p
 
 | Semáforo | Resultado |
 |---|---|
-| Aprobar (`estandar`) | **no cumple** — 6/11 |
+| Aprobar (`estandar`) | **no cumple** — 7/11 |
 | Destacar (`exigente`) | **no cumple** — 5/11 |
 
-**Para aprobar, falta cumplir:** SOLID; Duplicación
+**Para aprobar, falta cumplir:** Duplicación
 
 **Para destacar, falta cumplir:** SOLID; POO; Duplicación
 
@@ -52,7 +52,7 @@ Cada dimensión indica **qué mide**, **por qué importa** y **tu resultado**. C
 
 | Dimensión | Peso | Puntaje |
 |:--|--:|--:|
-| **D1** Diseño OO, SOLID y patrones (20%) | 20% | 7 |
+| **D1** Diseño OO, SOLID y patrones (20%) | 20% | 5 |
 | **D2** Arquitectura hexagonal — backend (15%) | 15% | 100 |
 | **D3** Frontend KMP: MVVM y buenas prácticas (10%) | 10% | N/A |
 | **D4** Integración y contrato (10%) | 10% | 80 |
@@ -64,7 +64,7 @@ Cada dimensión indica **qué mide**, **por qué importa** y **tu resultado**. C
 
 - **Qué mide:** Métricas orientadas a objetos (clases, métodos, campos, cohesión, acoplamiento, herencia) y proxies de SOLID, más patrones de diseño.
 - **Por qué importa:** El eje de la materia es el buen uso de la POO y su arquitectura: un diseño con clases claras y poco acopladas es más fácil de entender, probar y cambiar.
-- **Tu resultado:** **7/100**
+- **Tu resultado:** **5/100**
 - **Para investigar la causa:**
     - ¿Se pensó el modelo de clases antes de codificar o se agrupó después?
     - ¿Qué clases concentran muchas responsabilidades a la vez?
@@ -102,64 +102,102 @@ Cada dimensión indica **qué mide**, **por qué importa** y **tu resultado**. C
 
 ## 5. Señales detectadas
 
-El análisis encontró las siguientes señales (archivo, sin número de línea a propósito):
+El análisis encontró las siguientes señales, con el archivo y la línea donde se originan cuando están disponibles:
 
-**SRP/responsabilidad** (16)
-- clase 'CatalogoRedisAdapter' grande (LOC=218, métodos=20, campos=9) — `src/main/java/com/example/svccatalogo/catalogo/infrastructure/redis/CatalogoRedisAdapter.java`
-- clase 'CatalogoRedisAdapter' con baja cohesión (7%) — `src/main/java/com/example/svccatalogo/catalogo/infrastructure/redis/CatalogoRedisAdapter.java`
-- método 'CatalogoRedisAdapter.obtenerCambios' de 47 líneas — `src/main/java/com/example/svccatalogo/catalogo/infrastructure/redis/CatalogoRedisAdapter.java`
-- método 'CatalogoRedisAdapter.obtenerCambios' con complejidad 7 — `src/main/java/com/example/svccatalogo/catalogo/infrastructure/redis/CatalogoRedisAdapter.java`
-- método 'CatalogoKafkaConsumerAdapter.convertirNotificacion' de 62 líneas — `src/main/java/com/example/svccatalogo/catalogo/infrastructure/kafka/CatalogoKafkaConsumerAdapter.java`
-- método 'CatalogoKafkaConsumerAdapter.convertirNotificacion' con complejidad 9 — `src/main/java/com/example/svccatalogo/catalogo/infrastructure/kafka/CatalogoKafkaConsumerAdapter.java`
-- clase 'HorarioSemanalEntity' grande (LOC=21, métodos=0, campos=9) — `src/main/java/com/example/svccatalogo/catalogo/infrastructure/persistence/entity/HorarioSemanalEntity.java`
-- clase 'ProfesionalController' con baja cohesión (5%) — `src/main/java/com/example/svccatalogo/catalogo/infrastructure/web/controller/ProfesionalController.java`
-- clase 'ProcesarNotificacionCatalogoService' con baja cohesión (10%) — `src/main/java/com/example/svccatalogo/catalogo/application/usecases/ProcesarNotificacionCatalogoService.java`
-- método 'SincronizarCatalogoIncrementalUseCase.sincronizarCatalogoIncremental' de 70 líneas — `src/main/java/com/example/svccatalogo/catalogo/application/usecases/SincronizarCatalogoIncrementalUseCase.java`
-- método 'SincronizarCatalogoIncrementalUseCase.sincronizarCatalogoIncremental' con complejidad 9 — `src/main/java/com/example/svccatalogo/catalogo/application/usecases/SincronizarCatalogoIncrementalUseCase.java`
-- clase 'HorarioSemanal' grande (LOC=66, métodos=11, campos=9) — `src/main/java/com/example/svccatalogo/catalogo/domain/model/HorarioSemanal.java`
-- clase 'HorarioSemanal' con baja cohesión (15%) — `src/main/java/com/example/svccatalogo/catalogo/domain/model/HorarioSemanal.java`
-- clase 'Categoria' con baja cohesión (0%) — `src/main/java/com/example/svccatalogo/catalogo/domain/model/Categoria.java`
-- clase 'EstadoSincronizacion' sin métodos (5 campos): solo datos — `src/main/java/com/example/svccatalogo/catalogo/domain/model/EstadoSincronizacion.java`
-- clase 'Profesional' con baja cohesión (0%) — `src/main/java/com/example/svccatalogo/catalogo/domain/model/Profesional.java`
+**Archivos con más señales**
+
+| Archivo | Señales |
+|---|---:|
+| `src/main/java/com/example/svccatalogo/catalogo/infrastructure/client/dto/SnapshotResponseDto.java` | 8 |
+| `src/main/java/com/example/svccatalogo/catalogo/infrastructure/redis/CatalogoRedisAdapter.java` | 7 |
+| `src/main/java/com/example/svccatalogo/catalogo/domain/model/HorarioSemanal.java` | 6 |
+| `src/main/java/com/example/svccatalogo/catalogo/infrastructure/kafka/CatalogoKafkaConsumerAdapter.java` | 5 |
+| `src/main/java/com/example/svccatalogo/catalogo/infrastructure/persistence/adapter/CatalogoIncrementalPersistenceAdapter.java` | 4 |
+| `src/main/java/com/example/svccatalogo/catalogo/application/usecases/SincronizarCatalogoIncrementalUseCase.java` | 4 |
+| `src/test/java/com/example/svccatalogo/catalogo/infrastructure/kafka/CatalogoKafkaConsumerAdapterTest.java` | 4 |
+| `src/main/java/com/example/svccatalogo/catalogo/infrastructure/persistence/adapter/CatalogoSnapshotPersistenceAdapter.java` | 3 |
+| `src/main/java/com/example/svccatalogo/catalogo/infrastructure/web/controller/ProfesionalController.java` | 3 |
+| `src/main/java/com/example/svccatalogo/catalogo/infrastructure/web/dto/ProfesionalDetalleResponse.java` | 3 |
+
+**SRP/responsabilidad** (39)
+- método 'SincronizarCatalogoIncrementalUseCase.sincronizarCatalogoIncremental' de 70 líneas — `src/main/java/com/example/svccatalogo/catalogo/application/usecases/SincronizarCatalogoIncrementalUseCase.java:41`
+- método 'SincronizarCatalogoIncrementalUseCase.sincronizarCatalogoIncremental' con complejidad 9 — `src/main/java/com/example/svccatalogo/catalogo/application/usecases/SincronizarCatalogoIncrementalUseCase.java:41`
+- método 'SincronizarCatalogoIncrementalUseCase.reunirIdsModificados' con 5 parámetros — `src/main/java/com/example/svccatalogo/catalogo/application/usecases/SincronizarCatalogoIncrementalUseCase.java:132`
+- clase 'Categoria' con baja cohesión (29%) — `src/main/java/com/example/svccatalogo/catalogo/domain/model/Categoria.java:5`
+- método 'Categoria.Categoria' con 6 parámetros — `src/main/java/com/example/svccatalogo/catalogo/domain/model/Categoria.java:14`
+- método 'CriteriosBusquedaProfesional.CriteriosBusquedaProfesional' con 5 parámetros — `src/main/java/com/example/svccatalogo/catalogo/domain/model/CriteriosBusquedaProfesional.java:6`
+- método 'EstadoSincronizacion.EstadoSincronizacion' con 5 parámetros — `src/main/java/com/example/svccatalogo/catalogo/domain/model/EstadoSincronizacion.java:16`
+- clase 'HorarioSemanal' grande (LOC=66, métodos=11, campos=9) — `src/main/java/com/example/svccatalogo/catalogo/domain/model/HorarioSemanal.java:11`
+- clase 'HorarioSemanal' con baja cohesión (27%) — `src/main/java/com/example/svccatalogo/catalogo/domain/model/HorarioSemanal.java:11`
+- método 'HorarioSemanal.HorarioSemanal' con 9 parámetros — `src/main/java/com/example/svccatalogo/catalogo/domain/model/HorarioSemanal.java:23`
+- método 'HorarioSemanal.HorarioSemanal' con complejidad 6 — `src/main/java/com/example/svccatalogo/catalogo/domain/model/HorarioSemanal.java:23`
+- clase 'Profesional' con baja cohesión (25%) — `src/main/java/com/example/svccatalogo/catalogo/domain/model/Profesional.java:5`
+- método 'Profesional.Profesional' con 7 parámetros — `src/main/java/com/example/svccatalogo/catalogo/domain/model/Profesional.java:15`
+- método 'SnapshotResponseDto.SnapshotResponseDto' de 39 líneas — `src/main/java/com/example/svccatalogo/catalogo/infrastructure/client/dto/SnapshotResponseDto.java:8`
+- método 'SnapshotResponseDto.SnapshotResponseDto' con 5 parámetros — `src/main/java/com/example/svccatalogo/catalogo/infrastructure/client/dto/SnapshotResponseDto.java:8`
+- método 'SnapshotResponseDto.CategoriaResponseDto' con 6 parámetros — `src/main/java/com/example/svccatalogo/catalogo/infrastructure/client/dto/SnapshotResponseDto.java:16`
+- método 'CategoriaResponseDto.CategoriaResponseDto' con 6 parámetros — `src/main/java/com/example/svccatalogo/catalogo/infrastructure/client/dto/SnapshotResponseDto.java:16`
+- método 'SnapshotResponseDto.ProfesionalResponseDto' con 7 parámetros — `src/main/java/com/example/svccatalogo/catalogo/infrastructure/client/dto/SnapshotResponseDto.java:26`
+- método 'ProfesionalResponseDto.ProfesionalResponseDto' con 7 parámetros — `src/main/java/com/example/svccatalogo/catalogo/infrastructure/client/dto/SnapshotResponseDto.java:26`
+- método 'SnapshotResponseDto.HorarioSemanalResponseDto' con 9 parámetros — `src/main/java/com/example/svccatalogo/catalogo/infrastructure/client/dto/SnapshotResponseDto.java:37`
+- método 'HorarioSemanalResponseDto.HorarioSemanalResponseDto' con 9 parámetros — `src/main/java/com/example/svccatalogo/catalogo/infrastructure/client/dto/SnapshotResponseDto.java:37`
+- clase 'CatalogoKafkaConsumerAdapter' grande (LOC=97, métodos=11, campos=2) — `src/main/java/com/example/svccatalogo/catalogo/infrastructure/kafka/CatalogoKafkaConsumerAdapter.java:18`
+- método 'CatalogoKafkaConsumerAdapter.convertirNotificacion' de 62 líneas — `src/main/java/com/example/svccatalogo/catalogo/infrastructure/kafka/CatalogoKafkaConsumerAdapter.java:53`
+- método 'CatalogoKafkaConsumerAdapter.convertirNotificacion' con complejidad 9 — `src/main/java/com/example/svccatalogo/catalogo/infrastructure/kafka/CatalogoKafkaConsumerAdapter.java:53`
+- método 'CatalogoIncrementalPersistenceAdapter.aplicarVersion' de 60 líneas — `src/main/java/com/example/svccatalogo/catalogo/infrastructure/persistence/adapter/CatalogoIncrementalPersistenceAdapter.java:47`
+- método 'CatalogoIncrementalPersistenceAdapter.aplicarVersion' con 5 parámetros — `src/main/java/com/example/svccatalogo/catalogo/infrastructure/persistence/adapter/CatalogoIncrementalPersistenceAdapter.java:47`
+- método 'CatalogoSnapshotPersistenceAdapter.reemplazarCatalogo' de 55 líneas — `src/main/java/com/example/svccatalogo/catalogo/infrastructure/persistence/adapter/CatalogoSnapshotPersistenceAdapter.java:47`
+- clase 'CatalogoRedisAdapter' grande (LOC=218, métodos=18, campos=9) — `src/main/java/com/example/svccatalogo/catalogo/infrastructure/redis/CatalogoRedisAdapter.java:26`
+- clase 'CatalogoRedisAdapter' con baja cohesión (6%) — `src/main/java/com/example/svccatalogo/catalogo/infrastructure/redis/CatalogoRedisAdapter.java:26`
+- método 'CatalogoRedisAdapter.obtenerCambios' de 47 líneas — `src/main/java/com/example/svccatalogo/catalogo/infrastructure/redis/CatalogoRedisAdapter.java:72`
+- método 'CatalogoRedisAdapter.obtenerCambios' con complejidad 7 — `src/main/java/com/example/svccatalogo/catalogo/infrastructure/redis/CatalogoRedisAdapter.java:72`
+- método 'CatalogoRedisAdapter.leerEntidad' de 32 líneas — `src/main/java/com/example/svccatalogo/catalogo/infrastructure/redis/CatalogoRedisAdapter.java:244`
+- clase 'ProfesionalController' con baja cohesión (14%) — `src/main/java/com/example/svccatalogo/catalogo/infrastructure/web/controller/ProfesionalController.java:32`
+- método 'EstadoSincronizacionResponse.EstadoSincronizacionResponse' con 5 parámetros — `src/main/java/com/example/svccatalogo/catalogo/infrastructure/web/dto/EstadoSincronizacionResponse.java:5`
+- método 'HorarioSemanalResponse.HorarioSemanalResponse' con 9 parámetros — `src/main/java/com/example/svccatalogo/catalogo/infrastructure/web/dto/HorarioSemanalResponse.java:7`
+- método 'ProfesionalDetalleResponse.ProfesionalDetalleResponse' con 8 parámetros — `src/main/java/com/example/svccatalogo/catalogo/infrastructure/web/dto/ProfesionalDetalleResponse.java:5`
+- método 'ProfesionalDetalleResponse.CategoriaResponse' con 6 parámetros — `src/main/java/com/example/svccatalogo/catalogo/infrastructure/web/dto/ProfesionalDetalleResponse.java:16`
+- método 'CategoriaResponse.CategoriaResponse' con 6 parámetros — `src/main/java/com/example/svccatalogo/catalogo/infrastructure/web/dto/ProfesionalDetalleResponse.java:16`
+- método 'ProfesionalResponse.ProfesionalResponse' con 7 parámetros — `src/main/java/com/example/svccatalogo/catalogo/infrastructure/web/dto/ProfesionalResponse.java:5`
 
 **DIP/concretos** (29)
-- clase 'CatalogoRedisAdapter' muy acoplada (CBO=26) — `src/main/java/com/example/svccatalogo/catalogo/infrastructure/redis/CatalogoRedisAdapter.java`
-- clase 'CatalogoRedisAdapter' instancia 17 concretos (CBO=26) — `src/main/java/com/example/svccatalogo/catalogo/infrastructure/redis/CatalogoRedisAdapter.java`
-- clase 'ReconciliacionCatalogoInicioAdapter' muy acoplada (CBO=10) — `src/main/java/com/example/svccatalogo/catalogo/infrastructure/startup/ReconciliacionCatalogoInicioAdapter.java`
-- clase 'JwtConfig' muy acoplada (CBO=22) — `src/main/java/com/example/svccatalogo/catalogo/infrastructure/security/JwtConfig.java`
-- clase 'JwtConfig' instancia 4 concretos (CBO=22) — `src/main/java/com/example/svccatalogo/catalogo/infrastructure/security/JwtConfig.java`
-- clase 'SecurityConfig' muy acoplada (CBO=12) — `src/main/java/com/example/svccatalogo/catalogo/infrastructure/security/SecurityConfig.java`
-- clase 'CatalogoKafkaConsumerAdapter' muy acoplada (CBO=19) — `src/main/java/com/example/svccatalogo/catalogo/infrastructure/kafka/CatalogoKafkaConsumerAdapter.java`
-- clase 'CatalogoKafkaConsumerAdapter' instancia 11 concretos (CBO=19) — `src/main/java/com/example/svccatalogo/catalogo/infrastructure/kafka/CatalogoKafkaConsumerAdapter.java`
-- clase 'ProfesionalJpaRepository' muy acoplada (CBO=17) — `src/main/java/com/example/svccatalogo/catalogo/infrastructure/persistence/repository/ProfesionalJpaRepository.java`
-- clase 'EventoCatalogoProcesadoJpaRepository' muy acoplada (CBO=9) — `src/main/java/com/example/svccatalogo/catalogo/infrastructure/persistence/repository/EventoCatalogoProcesadoJpaRepository.java`
-- clase 'CatalogoSnapshotPersistenceAdapter' muy acoplada (CBO=23) — `src/main/java/com/example/svccatalogo/catalogo/infrastructure/persistence/adapter/CatalogoSnapshotPersistenceAdapter.java`
-- clase 'CatalogoSnapshotPersistenceAdapter' instancia 3 concretos (CBO=23) — `src/main/java/com/example/svccatalogo/catalogo/infrastructure/persistence/adapter/CatalogoSnapshotPersistenceAdapter.java`
-- clase 'CatalogoIncrementalPersistenceAdapter' muy acoplada (CBO=20) — `src/main/java/com/example/svccatalogo/catalogo/infrastructure/persistence/adapter/CatalogoIncrementalPersistenceAdapter.java`
-- clase 'CatalogoIncrementalPersistenceAdapter' instancia 5 concretos (CBO=20) — `src/main/java/com/example/svccatalogo/catalogo/infrastructure/persistence/adapter/CatalogoIncrementalPersistenceAdapter.java`
-- clase 'EstadoSincronizacionPersistenceAdapter' muy acoplada (CBO=8) — `src/main/java/com/example/svccatalogo/catalogo/infrastructure/persistence/adapter/EstadoSincronizacionPersistenceAdapter.java`
-- clase 'CatalogoSnapshotMapper' muy acoplada (CBO=12) — `src/main/java/com/example/svccatalogo/catalogo/infrastructure/client/CatalogoSnapshotMapper.java`
-- clase 'CatalogoSnapshotMapper' instancia 4 concretos (CBO=12) — `src/main/java/com/example/svccatalogo/catalogo/infrastructure/client/CatalogoSnapshotMapper.java`
-- clase 'CatalogoRestClientAdapter' muy acoplada (CBO=13) — `src/main/java/com/example/svccatalogo/catalogo/infrastructure/client/CatalogoRestClientAdapter.java`
-- clase 'CatalogoRestClientAdapter' instancia 5 concretos (CBO=13) — `src/main/java/com/example/svccatalogo/catalogo/infrastructure/client/CatalogoRestClientAdapter.java`
-- clase 'ProfesionalController' muy acoplada (CBO=24) — `src/main/java/com/example/svccatalogo/catalogo/infrastructure/web/controller/ProfesionalController.java`
-- clase 'ProfesionalController' instancia 6 concretos (CBO=24) — `src/main/java/com/example/svccatalogo/catalogo/infrastructure/web/controller/ProfesionalController.java`
-- clase 'ProcesarNotificacionCatalogoService' muy acoplada (CBO=12) — `src/main/java/com/example/svccatalogo/catalogo/application/usecases/ProcesarNotificacionCatalogoService.java`
-- clase 'ConsultarHorariosProfesionalUseCase' muy acoplada (CBO=8) — `src/main/java/com/example/svccatalogo/catalogo/application/usecases/ConsultarHorariosProfesionalUseCase.java`
-- clase 'ConsultarProfesionalUseCase' muy acoplada (CBO=10) — `src/main/java/com/example/svccatalogo/catalogo/application/usecases/ConsultarProfesionalUseCase.java`
-- clase 'ConsultarProfesionalUseCase' instancia 4 concretos (CBO=10) — `src/main/java/com/example/svccatalogo/catalogo/application/usecases/ConsultarProfesionalUseCase.java`
-- clase 'AplicarSnapshotCatalogoUseCase' muy acoplada (CBO=9) — `src/main/java/com/example/svccatalogo/catalogo/application/usecases/AplicarSnapshotCatalogoUseCase.java`
-- clase 'SincronizarCatalogoIncrementalUseCase' muy acoplada (CBO=19) — `src/main/java/com/example/svccatalogo/catalogo/application/usecases/SincronizarCatalogoIncrementalUseCase.java`
-- clase 'HorarioSemanal' muy acoplada (CBO=9) — `src/main/java/com/example/svccatalogo/catalogo/domain/model/HorarioSemanal.java`
-- clase 'HorarioSemanal' instancia 5 concretos (CBO=9) — `src/main/java/com/example/svccatalogo/catalogo/domain/model/HorarioSemanal.java`
+- clase 'AplicarSnapshotCatalogoUseCase' muy acoplada (CBO=9) — `src/main/java/com/example/svccatalogo/catalogo/application/usecases/AplicarSnapshotCatalogoUseCase.java:14`
+- clase 'ConsultarHorariosProfesionalUseCase' muy acoplada (CBO=8) — `src/main/java/com/example/svccatalogo/catalogo/application/usecases/ConsultarHorariosProfesionalUseCase.java:15`
+- clase 'ConsultarProfesionalUseCase' muy acoplada (CBO=10) — `src/main/java/com/example/svccatalogo/catalogo/application/usecases/ConsultarProfesionalUseCase.java:14`
+- clase 'ConsultarProfesionalUseCase' instancia 4 concretos (CBO=10) — `src/main/java/com/example/svccatalogo/catalogo/application/usecases/ConsultarProfesionalUseCase.java:14`
+- clase 'ProcesarNotificacionCatalogoService' muy acoplada (CBO=12) — `src/main/java/com/example/svccatalogo/catalogo/application/usecases/ProcesarNotificacionCatalogoService.java:15`
+- clase 'SincronizarCatalogoIncrementalUseCase' muy acoplada (CBO=19) — `src/main/java/com/example/svccatalogo/catalogo/application/usecases/SincronizarCatalogoIncrementalUseCase.java:18`
+- clase 'HorarioSemanal' muy acoplada (CBO=9) — `src/main/java/com/example/svccatalogo/catalogo/domain/model/HorarioSemanal.java:11`
+- clase 'HorarioSemanal' instancia 5 concretos (CBO=9) — `src/main/java/com/example/svccatalogo/catalogo/domain/model/HorarioSemanal.java:11`
+- clase 'CatalogoRestClientAdapter' muy acoplada (CBO=13) — `src/main/java/com/example/svccatalogo/catalogo/infrastructure/client/CatalogoRestClientAdapter.java:14`
+- clase 'CatalogoRestClientAdapter' instancia 5 concretos (CBO=13) — `src/main/java/com/example/svccatalogo/catalogo/infrastructure/client/CatalogoRestClientAdapter.java:14`
+- clase 'CatalogoSnapshotMapper' muy acoplada (CBO=12) — `src/main/java/com/example/svccatalogo/catalogo/infrastructure/client/CatalogoSnapshotMapper.java:14`
+- clase 'CatalogoSnapshotMapper' instancia 4 concretos (CBO=12) — `src/main/java/com/example/svccatalogo/catalogo/infrastructure/client/CatalogoSnapshotMapper.java:14`
+- clase 'CatalogoKafkaConsumerAdapter' muy acoplada (CBO=19) — `src/main/java/com/example/svccatalogo/catalogo/infrastructure/kafka/CatalogoKafkaConsumerAdapter.java:18`
+- clase 'CatalogoKafkaConsumerAdapter' instancia 11 concretos (CBO=19) — `src/main/java/com/example/svccatalogo/catalogo/infrastructure/kafka/CatalogoKafkaConsumerAdapter.java:18`
+- clase 'CatalogoIncrementalPersistenceAdapter' muy acoplada (CBO=20) — `src/main/java/com/example/svccatalogo/catalogo/infrastructure/persistence/adapter/CatalogoIncrementalPersistenceAdapter.java:23`
+- clase 'CatalogoIncrementalPersistenceAdapter' instancia 5 concretos (CBO=20) — `src/main/java/com/example/svccatalogo/catalogo/infrastructure/persistence/adapter/CatalogoIncrementalPersistenceAdapter.java:23`
+- clase 'CatalogoSnapshotPersistenceAdapter' muy acoplada (CBO=23) — `src/main/java/com/example/svccatalogo/catalogo/infrastructure/persistence/adapter/CatalogoSnapshotPersistenceAdapter.java:23`
+- clase 'CatalogoSnapshotPersistenceAdapter' instancia 3 concretos (CBO=23) — `src/main/java/com/example/svccatalogo/catalogo/infrastructure/persistence/adapter/CatalogoSnapshotPersistenceAdapter.java:23`
+- clase 'EstadoSincronizacionPersistenceAdapter' muy acoplada (CBO=8) — `src/main/java/com/example/svccatalogo/catalogo/infrastructure/persistence/adapter/EstadoSincronizacionPersistenceAdapter.java:12`
+- clase 'EventoCatalogoProcesadoJpaRepository' muy acoplada (CBO=9) — `src/main/java/com/example/svccatalogo/catalogo/infrastructure/persistence/repository/EventoCatalogoProcesadoJpaRepository.java:9`
+- clase 'ProfesionalJpaRepository' muy acoplada (CBO=17) — `src/main/java/com/example/svccatalogo/catalogo/infrastructure/persistence/repository/ProfesionalJpaRepository.java:11`
+- clase 'CatalogoRedisAdapter' muy acoplada (CBO=26) — `src/main/java/com/example/svccatalogo/catalogo/infrastructure/redis/CatalogoRedisAdapter.java:26`
+- clase 'CatalogoRedisAdapter' instancia 17 concretos (CBO=26) — `src/main/java/com/example/svccatalogo/catalogo/infrastructure/redis/CatalogoRedisAdapter.java:26`
+- clase 'JwtConfig' muy acoplada (CBO=22) — `src/main/java/com/example/svccatalogo/catalogo/infrastructure/security/JwtConfig.java:25`
+- clase 'JwtConfig' instancia 4 concretos (CBO=22) — `src/main/java/com/example/svccatalogo/catalogo/infrastructure/security/JwtConfig.java:25`
+- clase 'SecurityConfig' muy acoplada (CBO=12) — `src/main/java/com/example/svccatalogo/catalogo/infrastructure/security/SecurityConfig.java:14`
+- clase 'ReconciliacionCatalogoInicioAdapter' muy acoplada (CBO=10) — `src/main/java/com/example/svccatalogo/catalogo/infrastructure/startup/ReconciliacionCatalogoInicioAdapter.java:12`
+- clase 'ProfesionalController' muy acoplada (CBO=24) — `src/main/java/com/example/svccatalogo/catalogo/infrastructure/web/controller/ProfesionalController.java:32`
+- clase 'ProfesionalController' instancia 6 concretos (CBO=24) — `src/main/java/com/example/svccatalogo/catalogo/infrastructure/web/controller/ProfesionalController.java:32`
 
 **duplicación** (6)
 - duplicación lógica: 8.5% · boilerplate: 7.4%
-- bloque de 8 líneas repetido 7 veces en src/test/java/com/example/svccatalogo/catalogo/domain/model/HorarioSemanalTest.java:19, src/test/java/com/example/svccatalogo/catalogo/domain/model/HorarioSemanalTest.java:20, src/test/java/com/example/svccatalogo/catalogo/domain/model/HorarioSemanalTest.java:21 — `src/test/java/com/example/svccatalogo/catalogo/domain/model/HorarioSemanalTest.java`
-- bloque de 8 líneas repetido 5 veces en src/test/java/com/example/svccatalogo/catalogo/infrastructure/kafka/CatalogoKafkaConsumerAdapterTest.java:148, src/test/java/com/example/svccatalogo/catalogo/infrastructure/kafka/CatalogoKafkaConsumerAdapterTest.java:155, src/test/java/com/example/svccatalogo/catalogo/infrastructure/kafka/CatalogoKafkaConsumerAdapterTest.java:162 — `src/test/java/com/example/svccatalogo/catalogo/infrastructure/kafka/CatalogoKafkaConsumerAdapterTest.java`
-- bloque de 8 líneas repetido 5 veces en src/test/java/com/example/svccatalogo/catalogo/infrastructure/kafka/CatalogoKafkaConsumerAdapterTest.java:150, src/test/java/com/example/svccatalogo/catalogo/infrastructure/kafka/CatalogoKafkaConsumerAdapterTest.java:157, src/test/java/com/example/svccatalogo/catalogo/infrastructure/kafka/CatalogoKafkaConsumerAdapterTest.java:164 — `src/test/java/com/example/svccatalogo/catalogo/infrastructure/kafka/CatalogoKafkaConsumerAdapterTest.java`
-- bloque de 8 líneas repetido 5 veces en src/test/java/com/example/svccatalogo/catalogo/infrastructure/kafka/CatalogoKafkaConsumerAdapterTest.java:152, src/test/java/com/example/svccatalogo/catalogo/infrastructure/kafka/CatalogoKafkaConsumerAdapterTest.java:159, src/test/java/com/example/svccatalogo/catalogo/infrastructure/kafka/CatalogoKafkaConsumerAdapterTest.java:166 — `src/test/java/com/example/svccatalogo/catalogo/infrastructure/kafka/CatalogoKafkaConsumerAdapterTest.java`
-- bloque de 8 líneas repetido 5 veces en src/test/java/com/example/svccatalogo/catalogo/infrastructure/kafka/CatalogoKafkaConsumerAdapterTest.java:149, src/test/java/com/example/svccatalogo/catalogo/infrastructure/kafka/CatalogoKafkaConsumerAdapterTest.java:156, src/test/java/com/example/svccatalogo/catalogo/infrastructure/kafka/CatalogoKafkaConsumerAdapterTest.java:163 — `src/test/java/com/example/svccatalogo/catalogo/infrastructure/kafka/CatalogoKafkaConsumerAdapterTest.java`
+- bloque de 8 líneas repetido 7 veces en src/test/java/com/example/svccatalogo/catalogo/domain/model/HorarioSemanalTest.java:19, src/test/java/com/example/svccatalogo/catalogo/domain/model/HorarioSemanalTest.java:20, src/test/java/com/example/svccatalogo/catalogo/domain/model/HorarioSemanalTest.java:21 — `src/test/java/com/example/svccatalogo/catalogo/domain/model/HorarioSemanalTest.java:19`
+- bloque de 8 líneas repetido 5 veces en src/test/java/com/example/svccatalogo/catalogo/infrastructure/kafka/CatalogoKafkaConsumerAdapterTest.java:148, src/test/java/com/example/svccatalogo/catalogo/infrastructure/kafka/CatalogoKafkaConsumerAdapterTest.java:155, src/test/java/com/example/svccatalogo/catalogo/infrastructure/kafka/CatalogoKafkaConsumerAdapterTest.java:162 — `src/test/java/com/example/svccatalogo/catalogo/infrastructure/kafka/CatalogoKafkaConsumerAdapterTest.java:148`
+- bloque de 8 líneas repetido 5 veces en src/test/java/com/example/svccatalogo/catalogo/infrastructure/kafka/CatalogoKafkaConsumerAdapterTest.java:149, src/test/java/com/example/svccatalogo/catalogo/infrastructure/kafka/CatalogoKafkaConsumerAdapterTest.java:156, src/test/java/com/example/svccatalogo/catalogo/infrastructure/kafka/CatalogoKafkaConsumerAdapterTest.java:163 — `src/test/java/com/example/svccatalogo/catalogo/infrastructure/kafka/CatalogoKafkaConsumerAdapterTest.java:149`
+- bloque de 8 líneas repetido 5 veces en src/test/java/com/example/svccatalogo/catalogo/infrastructure/kafka/CatalogoKafkaConsumerAdapterTest.java:150, src/test/java/com/example/svccatalogo/catalogo/infrastructure/kafka/CatalogoKafkaConsumerAdapterTest.java:157, src/test/java/com/example/svccatalogo/catalogo/infrastructure/kafka/CatalogoKafkaConsumerAdapterTest.java:164 — `src/test/java/com/example/svccatalogo/catalogo/infrastructure/kafka/CatalogoKafkaConsumerAdapterTest.java:150`
+- bloque de 8 líneas repetido 5 veces en src/test/java/com/example/svccatalogo/catalogo/infrastructure/kafka/CatalogoKafkaConsumerAdapterTest.java:152, src/test/java/com/example/svccatalogo/catalogo/infrastructure/kafka/CatalogoKafkaConsumerAdapterTest.java:159, src/test/java/com/example/svccatalogo/catalogo/infrastructure/kafka/CatalogoKafkaConsumerAdapterTest.java:166 — `src/test/java/com/example/svccatalogo/catalogo/infrastructure/kafka/CatalogoKafkaConsumerAdapterTest.java:152`
 
 ## 6. Evolución por commit
 
@@ -170,7 +208,7 @@ xychart-beta
     title "Índice de calidad a lo largo de los commits"
     x-axis ["dde650c", "166fe85", "9f95fbf", "8288b7a", "98aec9b", "e8296a9", "36bc83c", "2f9c036", "2e04637", "f556159", "98585e8", "d95d83c", "710b4d7", "2df7127", "28739c1", "c47a2f7", "ef20794", "3f10d18", "e4d80b7", "7f15d77"]
     y-axis "Índice" 0 --> 100
-    line [0, 15, 33, 38, 35, 49, 55, 58, 61, 61, 60, 60, 60, 60, 60, 60, 62, 62, 66, 66]
+    line [0, 15, 33, 38, 34, 49, 55, 58, 60, 60, 60, 60, 59, 59, 59, 59, 61, 61, 66, 66]
 ```
 
 | # | Fecha | Commit | Autor | LOC | Índice | %POO | Duplic. | Sueltas |
@@ -179,20 +217,20 @@ xychart-beta
 | 2 | 2026-09-10 | `166fe85` | Ing. Daniel Quinteros | 0 | 15 | 0% | 0.0% | 0 |
 | 3 | 2026-10-12 | `9f95fbf` | Pilar Rocío Portal Romano | 18 | 33 | 56% | 0.0% | 0 |
 | 4 | 2026-10-16 | `8288b7a` | Pilar Rocío Portal Romano | 18 | 38 | 56% | 0.0% | 0 |
-| 5 | 2026-10-17 | `98aec9b` | Ing. Daniel Quinteros | 313 | 35 | 92% | 0.0% | 0 |
+| 5 | 2026-10-17 | `98aec9b` | Ing. Daniel Quinteros | 313 | 34 | 92% | 0.0% | 0 |
 | 6 | 2026-10-20 | `e8296a9` | Pilar Rocío Portal Romano | 1,658 | 49 | 75% | 4.5% | 0 |
 | 7 | 2026-10-23 | `36bc83c` | Pilar Rocío Portal Romano | 1,842 | 55 | 75% | 8.5% | 0 |
 | 8 | 2026-10-25 | `2f9c036` | Pilar Rocío Portal Romano | 2,414 | 58 | 80% | 12.6% | 0 |
-| 9 | 2026-10-26 | `2e04637` | Pilar Rocío Portal Romano | 2,684 | 61 | 80% | 12.6% | 0 |
-| 10 | 2026-10-28 | `f556159` | Pilar Rocío Portal Romano | 2,858 | 61 | 79% | 11.9% | 0 |
+| 9 | 2026-10-26 | `2e04637` | Pilar Rocío Portal Romano | 2,684 | 60 | 80% | 12.6% | 0 |
+| 10 | 2026-10-28 | `f556159` | Pilar Rocío Portal Romano | 2,858 | 60 | 79% | 11.9% | 0 |
 | 11 | 2026-10-30 | `98585e8` | Pilar Rocío Portal Romano | 3,257 | 60 | 80% | 10.3% | 0 |
 | 12 | 2026-11-01 | `d95d83c` | Pilar Rocío Portal Romano | 4,314 | 60 | 80% | 9.8% | 0 |
-| 13 | 2026-11-07 | `710b4d7` | Pilar Rocío Portal Romano | 5,255 | 60 | 81% | 10.9% | 0 |
-| 14 | 2026-11-08 | `2df7127` | Pilar Rocío Portal Romano | 5,388 | 60 | 81% | 10.2% | 0 |
-| 15 | 2026-11-08 | `28739c1` | Pilar Rocío Portal Romano | 5,608 | 60 | 81% | 9.8% | 0 |
-| 16 | 2026-11-08 | `c47a2f7` | Pilar Rocío Portal Romano | 6,046 | 60 | 80% | 9.2% | 0 |
-| 17 | 2026-11-09 | `ef20794` | Pilar Rocío Portal Romano | 6,334 | 62 | 80% | 9.5% | 0 |
-| 18 | 2026-11-09 | `3f10d18` | Pilar Rocío Portal Romano | 6,658 | 62 | 80% | 9.3% | 0 |
+| 13 | 2026-11-07 | `710b4d7` | Pilar Rocío Portal Romano | 5,255 | 59 | 81% | 10.9% | 0 |
+| 14 | 2026-11-08 | `2df7127` | Pilar Rocío Portal Romano | 5,388 | 59 | 81% | 10.2% | 0 |
+| 15 | 2026-11-08 | `28739c1` | Pilar Rocío Portal Romano | 5,608 | 59 | 81% | 9.8% | 0 |
+| 16 | 2026-11-08 | `c47a2f7` | Pilar Rocío Portal Romano | 6,046 | 59 | 80% | 9.2% | 0 |
+| 17 | 2026-11-09 | `ef20794` | Pilar Rocío Portal Romano | 6,334 | 61 | 80% | 9.5% | 0 |
+| 18 | 2026-11-09 | `3f10d18` | Pilar Rocío Portal Romano | 6,658 | 61 | 80% | 9.3% | 0 |
 | 19 | 2026-11-09 | `e4d80b7` | Pilar Rocío Portal Romano | 7,094 | 66 | 80% | 8.7% | 0 |
 | 20 | 2026-11-10 | `7f15d77` | Pilar Rocío Portal Romano | 7,582 | 66 | 80% | 8.5% | 0 |
 
