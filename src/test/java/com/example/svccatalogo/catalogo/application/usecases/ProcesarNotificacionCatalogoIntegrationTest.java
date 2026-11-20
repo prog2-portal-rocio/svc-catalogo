@@ -341,17 +341,17 @@ class ProcesarNotificacionCatalogoIntegrationTest {
     }
 
     @Test
-    void reconciliacionActualizadaNoModificaElEstadoNiLosDatos() {
+    void reconciliacionActualizadaRegistraElIntentoSinModificarElCatalogo() {
         configurarIncremento(5L);
         jdbcTemplate.update("""
                 UPDATE estado_sincronizacion SET applied_at = '2026-01-01T00:00:00Z',
                 phase = 'SUCCESS', safe_diagnostic = 'Ultima version aplicada' WHERE id = 1
                 """);
-        var estadoAnterior = filaEstado();
+        var estadoAnterior = versionYFechaAplicadas();
 
         reconciliarPort.reconciliarCatalogo();
 
-        assertEquals(estadoAnterior, filaEstado());
+        assertEquals(estadoAnterior, versionYFechaAplicadas());
         assertEquals(0L, cantidadCategorias());
         verifyNoInteractions(catalogoRemotoPort);
         verify(redisPort, never()).obtenerVersionMasAntiguaDisponible();
@@ -363,11 +363,12 @@ class ProcesarNotificacionCatalogoIntegrationTest {
         when(redisPort.obtenerVersionActual())
                 .thenThrow(new org.springframework.data.redis.RedisConnectionFailureException("No disponible"))
                 .thenReturn(6L);
-        var estadoAnterior = filaEstado();
+        var estadoAnterior = versionYFechaAplicadas();
 
         assertThrows(RuntimeException.class, reconciliarPort::reconciliarCatalogo);
 
-        assertEquals(estadoAnterior, filaEstado());
+        assertEquals(estadoAnterior, versionYFechaAplicadas());
+        assertEquals("ERROR", estadoRepository.obtenerEstado().getPhase());
         assertEquals(0L, cantidadCategorias());
         verify(redisPort).obtenerVersionActual();
 
@@ -378,11 +379,12 @@ class ProcesarNotificacionCatalogoIntegrationTest {
     @Test
     void falloRestNoAvanzaLaVersionNiRegistraExito() {
         when(catalogoRemotoPort.obtenerSnapshot()).thenThrow(new IllegalStateException("REST no disponible"));
-        var estadoAnterior = filaEstado();
+        var estadoAnterior = versionYFechaAplicadas();
 
         assertThrows(IllegalStateException.class, reconciliarPort::reconciliarCatalogo);
 
-        assertEquals(estadoAnterior, filaEstado());
+        assertEquals(estadoAnterior, versionYFechaAplicadas());
+        assertEquals("ERROR", estadoRepository.obtenerEstado().getPhase());
         verify(catalogoRemotoPort).obtenerSnapshot();
         verifyNoInteractions(redisPort);
     }
@@ -396,11 +398,12 @@ class ProcesarNotificacionCatalogoIntegrationTest {
                 List.of(new Categoria(2L, "Nueva categoria", null, true, null, null)),
                 List.of(new Profesional(10L, 999L, "Ana", "Perez", true, null, null)), List.of());
         when(catalogoRemotoPort.obtenerSnapshot()).thenReturn(snapshotInvalido);
-        var estadoAnterior = filaEstado();
+        var estadoAnterior = versionYFechaAplicadas();
 
         assertThrows(RuntimeException.class, reconciliarPort::reconciliarCatalogo);
 
-        assertEquals(estadoAnterior, filaEstado());
+        assertEquals(estadoAnterior, versionYFechaAplicadas());
+        assertEquals("ERROR", estadoRepository.obtenerEstado().getPhase());
         assertEquals("Categoria anterior", jdbcTemplate.queryForObject("SELECT name FROM categorias", String.class));
         assertEquals(0, cantidadEventosProcesados());
     }
@@ -410,21 +413,23 @@ class ProcesarNotificacionCatalogoIntegrationTest {
         configurarIncremento(7L);
         when(redisPort.obtenerVersionMasAntiguaDisponible()).thenReturn(6L);
         when(catalogoRemotoPort.obtenerSnapshot()).thenReturn(snapshot(6L));
-        var estadoAnterior = filaEstado();
+        var estadoAnterior = versionYFechaAplicadas();
 
         assertThrows(IllegalStateException.class, reconciliarPort::reconciliarCatalogo);
 
-        assertEquals(estadoAnterior, filaEstado());
+        assertEquals(estadoAnterior, versionYFechaAplicadas());
+        assertEquals("ERROR", estadoRepository.obtenerEstado().getPhase());
     }
 
     @Test
     void versionLocalSuperiorARedisNoRetrocede() {
         configurarIncremento(4L);
-        var estadoAnterior = filaEstado();
+        var estadoAnterior = versionYFechaAplicadas();
 
         assertThrows(IllegalStateException.class, reconciliarPort::reconciliarCatalogo);
 
-        assertEquals(estadoAnterior, filaEstado());
+        assertEquals(estadoAnterior, versionYFechaAplicadas());
+        assertEquals("ERROR", estadoRepository.obtenerEstado().getPhase());
         verifyNoInteractions(catalogoRemotoPort);
     }
 
@@ -529,8 +534,83 @@ class ProcesarNotificacionCatalogoIntegrationTest {
                 """, Integer.class) >= cantidad);
     }
 
-    private String filaEstado() {
-        return jdbcTemplate.queryForObject("SELECT row_to_json(e)::text FROM estado_sincronizacion e", String.class);
+    @Test
+    void falloCompletoTrasExitoConservaDatosYNoPersisteElMensajeSensible() {
+        when(catalogoRemotoPort.obtenerSnapshot()).thenReturn(new SnapshotCatalogo(5L,
+                List.of(new Categoria(1L, "Catalogo valido", null, true, null, null)), List.of(), List.of()));
+        incrementalPort.sincronizarCatalogoIncremental();
+        var anterior = estadoRepository.obtenerEstado();
+        when(redisPort.obtenerVersionActual()).thenThrow(new IllegalStateException("Bearer secreto privado"));
+
+        assertThrows(IllegalStateException.class, incrementalPort::sincronizarCatalogoIncremental);
+
+        var fallido = estadoRepository.obtenerEstado();
+        assertEquals("ERROR", fallido.getPhase());
+        assertEquals(anterior.getAppliedVersion(), fallido.getAppliedVersion());
+        assertEquals(anterior.getAppliedAt(), fallido.getAppliedAt());
+        assertNotNull(fallido.getLastAttemptAt());
+        assertFalse(fallido.getSafeDiagnostic().contains("secreto"));
+        assertEquals("Catalogo valido", jdbcTemplate.queryForObject("SELECT name FROM categorias", String.class));
+
+        doReturn(5L).when(redisPort).obtenerVersionActual();
+        reconciliarPort.reconciliarCatalogo();
+        assertEquals("SUCCESS", estadoRepository.obtenerEstado().getPhase());
+        assertEquals(anterior.getAppliedAt(), estadoRepository.obtenerEstado().getAppliedAt());
+    }
+
+    @Test
+    void falloDeArranquePersisteErrorSinCambiarLaPoliticaDeContinuar() {
+        configurarIncremento(6L);
+        when(redisPort.obtenerVersionActual()).thenThrow(new IllegalStateException("No disponible"));
+        var inicio = new com.example.svccatalogo.catalogo.infrastructure.startup.ReconciliacionCatalogoInicioAdapter(
+                reconciliarPort, Runnable::run);
+
+        assertDoesNotThrow(inicio::iniciar);
+
+        assertEquals("ERROR", estadoRepository.obtenerEstado().getPhase());
+        assertEquals(5L, versionAplicada());
+    }
+
+    @Test
+    void diagnosticoDemoradoNoSobrescribeUnResultadoMasReciente() {
+        Instant reciente = Instant.parse("2026-11-20T12:00:02Z");
+        estadoRepository.registrarResultadoIntento(reciente, true);
+        estadoRepository.registrarResultadoIntento(reciente.minusSeconds(1), false);
+        assertEquals("SUCCESS", estadoRepository.obtenerEstado().getPhase());
+        assertEquals(reciente, estadoRepository.obtenerEstado().getLastAttemptAt());
+    }
+
+    @Test
+    void diagnosticoEsperaElRollbackDelLlamadorAntesDeTomarElBloqueo() {
+        configurarIncremento(4L);
+        var transaccion = new TransactionTemplate(transactionManager);
+        assertThrows(IllegalStateException.class, () -> transaccion.executeWithoutResult(
+                estado -> reconciliarPort.reconciliarCatalogo()));
+        assertEquals("ERROR", estadoRepository.obtenerEstado().getPhase());
+        assertEquals(5L, versionAplicada());
+    }
+
+    @Test
+    void diagnosticoConcurrenteEsperaElBloqueoYRespetaElResultadoMasReciente() throws Exception {
+        Instant reciente = Instant.parse("2026-11-20T12:00:02Z");
+        try (var executor = Executors.newSingleThreadExecutor()) {
+            var tarea = new java.util.concurrent.atomic.AtomicReference<Future<?>>();
+            new TransactionTemplate(transactionManager).executeWithoutResult(estado -> {
+                estadoRepository.obtenerEstadoConBloqueo();
+                tarea.set(executor.submit(() -> estadoRepository.registrarResultadoIntento(
+                        reciente.minusSeconds(1), false)));
+                esperarTransaccionesBloqueadas(1);
+                jdbcTemplate.update("UPDATE estado_sincronizacion SET phase = 'SUCCESS', last_attempt_at = ? WHERE id = 1",
+                        java.sql.Timestamp.from(reciente));
+            });
+            tarea.get().get(10, TimeUnit.SECONDS);
+            assertEquals("SUCCESS", estadoRepository.obtenerEstado().getPhase());
+            assertEquals(reciente, estadoRepository.obtenerEstado().getLastAttemptAt());
+        }
+    }
+
+    private String versionYFechaAplicadas() {
+        return jdbcTemplate.queryForObject("SELECT json_build_array(applied_version, applied_at)::text FROM estado_sincronizacion", String.class);
     }
 
     private long cantidadCategorias() {
