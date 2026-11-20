@@ -38,7 +38,91 @@ Para mantener los datos actualizados, el servicio contempla mecanismos de sincro
 El proyecto incluye Maven Wrapper, por lo que no es
 necesario instalar Maven por separado.
 
-## Ejecución
+## Ejecución con Docker
+
+La imagen utiliza Java 25 aunque la terminal tenga seleccionado Java 21. La
+construcción usa Maven Wrapper; la imagen final solo contiene JRE 25 y el JAR,
+con usuario sin privilegios (UID 10001). Las bases oficiales están fijadas por
+digest en el Dockerfile. La suite con Testcontainers se ejecuta fuera del build.
+
+1. Preparar `.env` desde `.env.example` y completar la configuración privada.
+   Conservar las credenciales de una base existente: cambiarlas en `.env` no
+   cambia las del volumen PostgreSQL ya inicializado.
+2. Definir `CATALOGO_JWT_PUBLIC_KEY_FILE` como ruta absoluta de un archivo PEM
+   **público** RSA X.509, mínimo 2048 bits, correspondiente al emisor Turnos.
+   Debe ser legible por UID 10001. Se monta solo ese archivo, en modo lectura;
+   nunca montar la clave privada ni guardarla en la imagen/repositorio.
+   `CATALOGO_JWT_PUBLIC_KEY_LOCATION` sigue siendo la opción para Java en el host;
+   dentro del contenedor Compose la fija a `file:/run/keys/turnos-public.pem`.
+3. Configurar REST/Redis/Kafka con los valores asignados por cátedra. Los campos
+   vacíos y localhost del ejemplo no representan infraestructura real.
+
+```bash
+# Desde la raíz; config --quiet valida sin imprimir secretos.
+docker compose config --quiet
+docker compose up --build -d
+docker compose ps
+docker compose logs --tail=100 svc-catalogo
+curl -i http://localhost:8081/api/catalogo/profesionales
+```
+
+El GET sin JWT debe devolver **401**. Para comprobar datos, usar Postman con un
+JWT legítimo de Turnos: RS256, iss=svc-turnos, aud que incluya svc-catalogo-api y
+scope catalogo:read. El diagnóstico requiere catalogo:sync:read; no conceder ese
+permiso a un usuario común solo para la demostración. No imprimir ni exportar
+tokens. No existe un endpoint health público.
+
+| Configuración externa | Uso |
+| --- | --- |
+| CATALOGO_DB_NAME, CATALOGO_DB_USER, CATALOGO_DB_PASSWORD | Misma configuración PostgreSQL existente; volumen persistente conservado |
+| POSTGRES_PORT | Host 5432 por defecto, no cambia a 5433 (usado por Turnos) |
+| CATALOGO_HTTP_PORT | Puerto HTTP del host, 8081 por defecto; contenedor usa 8080 |
+| CATALOGO_JWT_PUBLIC_KEY_FILE | Ruta del archivo público en el host, exclusiva del montaje Compose |
+| CATALOGO_JWT_ISSUER, CATALOGO_JWT_AUDIENCE | svc-turnos y svc-catalogo-api por defecto |
+| CATEDRA_API_BASE_URL, CATEDRA_API_TOKEN | API y JWT **técnico**, independiente del JWT de usuario; token sin prefijo Bearer |
+| REDIS_HOST, REDIS_PORT, REDIS_USERNAME, REDIS_PASSWORD | Redis de cátedra, accesible desde el contenedor |
+| KAFKA_BOOTSTRAP_SERVERS, KAFKA_GROUP_ID, KAFKA_CATALOGO_TOPIC | Valores de la integración asignada |
+| KAFKA_LISTENER_AUTO_STARTUP | false por defecto; true para consumir eventos reales |
+| CATALOGO_RECONCILIACIONINICIO_ENABLED | Propiedad existente catalogo.reconciliacion-inicio.enabled, true por defecto |
+
+Spring se conecta a `jdbc:postgresql://postgres:5432/...` por la red Compose,
+no por el puerto publicado en el host. Espera a que PostgreSQL esté healthy;
+Flyway aplica V1/V2 y Hibernate valida el esquema. No se crean Redis ni Kafka
+locales. El healthcheck de la aplicación verifica **solo HTTP y el rechazo 401**,
+no frescura del catálogo, salud de Kafka o éxito de reconciliación.
+
+La reconciliación corre en segundo plano: sin URL/token REST o Redis accesible,
+falla de forma observable en logs y conserva la copia previa; el servidor HTTP
+puede seguir funcionando. En base vacía no hay datos reales para mostrar hasta
+completar la sincronización. Solo para una prueba local sin integración puede
+ponerse CATALOGO_RECONCILIACIONINICIO_ENABLED=false; no presentarla como catálogo
+sincronizado. Esta rama no incorpora la corrección diagnóstica del issue #38.
+
+Para reiniciar y detener **sin borrar la base**:
+
+```bash
+docker compose restart
+docker compose stop
+# Para iniciar de nuevo los contenedores detenidos:
+docker compose up -d
+```
+
+No ejecutar down -v ni comandos prune. Las políticas unless-stopped permiten
+reiniciar contenedores conservando el volumen. Usar el mismo directorio/nombre
+de proyecto Compose para reutilizarlo. Si cambia un puerto ocupado, ajustar
+POSTGRES_PORT o CATALOGO_HTTP_PORT, sin tocar los de otros proyectos.
+
+**Conectividad y problemas frecuentes:** localhost dentro del contenedor es el
+propio contenedor. Para cátedra usar sus direcciones reales por ZeroTier; el host
+conectado no garantiza que el bridge Docker tenga rutas, DNS y permisos de
+forwarding equivalentes. Comprobar también los advertised listeners de Kafka.
+No modificar el firewall o usar network_mode:host a ciegas. Si falta el PEM,
+Compose falla; si es inválido o ilegible, Spring no arranca. Si se ejecuta Java en
+el host, detener primero svc-catalogo para no competir por HTTP/BD y configurar
+sus variables del host por separado. Antes de compartir logs, revisar que no
+contengan información privada; no publicar la salida completa de compose config.
+
+## Ejecución con Java en el host
 
 Para ejecutar el servicio por primera vez, seguir las
 instrucciones de la sección **Persistencia local**.
@@ -100,10 +184,11 @@ migraciones de la base de datos se gestionan con Flyway.
    El archivo `.env` está excluido de Git y no debe subirse
    al repositorio.
 
-3. Iniciar PostgreSQL:
+3. Configurar también CATALOGO_JWT_PUBLIC_KEY_FILE según la sección Docker
+   (el Compose completo valida ese montaje), e iniciar solamente PostgreSQL:
 
    ```bash
-   docker compose up -d
+   docker compose up -d postgres
    ```
 
 4. Comprobar el estado del contenedor:

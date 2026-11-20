@@ -1,0 +1,17 @@
+# Contexto permitido: solo lo necesario para construir el artefacto.
+**
+!Dockerfile
+!pom.xml
+!mvnw
+!.mvn/
+!.mvn/**
+!src/
+!src/main/
+!src/main/**
+# Las claves y archivos privados nunca forman parte del contexto.
+**/*.pem
+**/*.key
+**/*.p12
+**/*.pfx
+**/*.jks
+**/.env*
