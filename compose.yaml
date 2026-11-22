@@ -10,6 +10,8 @@ services:
       - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
     volumes:
       - catalogo_postgres_data:/var/lib/postgresql
+    networks:
+      - default
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
       interval: 5s
@@ -19,6 +21,9 @@ services:
   svc-catalogo:
     build: .
     restart: unless-stopped
+    networks:
+      - default
+      - integracion
     depends_on:
       postgres:
         condition: service_healthy
@@ -61,3 +66,9 @@ services:
 
 volumes:
   catalogo_postgres_data:
+
+networks:
+  default: {}
+  integracion:
+    external: true
+    name: backends-integracion

@@ -56,6 +56,20 @@ digest en el Dockerfile. La suite con Testcontainers se ejecuta fuera del build.
    dentro del contenedor Compose la fija a `file:/run/keys/turnos-public.pem`.
 3. Configurar REST/Redis/Kafka con los valores asignados por cátedra. Los campos
    vacíos y localhost del ejemplo no representan infraestructura real.
+4. Preparar una única vez la red bridge compartida `backends-integracion`.
+   Si ya existe, verificarla y reutilizarla sin eliminarla:
+
+```bash
+docker network inspect backends-integracion --format '{{.Name}} ({{.Driver}})'
+# Solo si la red no existe:
+docker network create --driver bridge backends-integracion
+```
+
+Compose requiere que esta red externa exista antes del arranque; no la crea.
+`svc-catalogo` se conecta a `default` y a `backends-integracion`; PostgreSQL
+permanece únicamente en `default`. Turnos deberá incorporarse a la misma red
+en su cambio correspondiente y usar `http://svc-catalogo:8080`. Desde Ubuntu
+se conserva `http://localhost:8081` con los puertos predeterminados.
 
 ```bash
 # Desde la raíz; config --quiet valida sin imprimir secretos.
@@ -65,6 +79,15 @@ docker compose ps
 docker compose logs --tail=100 svc-catalogo
 curl -i http://localhost:8081/api/catalogo/profesionales
 ```
+
+Después de iniciar los servicios, comprobar los contenedores de la red compartida:
+
+```bash
+docker network inspect backends-integracion --format '{{range .Containers}}{{println .Name}}{{end}}'
+```
+
+PostgreSQL no debe aparecer en esa lista. La red compartida no reemplaza JWT
+ni garantiza la conectividad con Redis, Kafka o REST de cátedra.
 
 El GET sin JWT debe devolver **401**. Para comprobar datos, usar Postman con un
 JWT legítimo de Turnos: RS256, iss=svc-turnos, aud que incluya svc-catalogo-api y
