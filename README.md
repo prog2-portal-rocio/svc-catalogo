@@ -5,272 +5,100 @@
 Detalle completo en [`docs/EVALUACION.md`](docs/EVALUACION.md).
 <!-- calidad:fin -->
 
-## Servicio de Catálogo
+# svc-catalogo
 
-Servicio backend desarrollado para el proyecto integrador de Programación II, correspondiente a un sistema distribuido de gestión de turnos.
+Servicio de copia local y sincronización del catálogo de profesionales de Programación II. Expone consultas protegidas para Turnos y los clientes autorizados.
 
-### Descripción
+## Tecnologías y requisitos
 
-El servicio de catálogo tiene como finalidad proporcionar información de profesionales y prestaciones a los demás componentes del sistema.
+Java 25, Spring Boot 4.1.1, Maven Wrapper, Spring Data JPA, PostgreSQL 18, Flyway, Redis y Spring Kafka. Pruebas con JUnit, Mockito, Testcontainers y JaCoCo.
 
-Su responsabilidad principal es mantener una copia local de la información del catálogo, permitiendo realizar consultas sin depender constantemente del servicio central.
+- Docker Engine y Docker Compose v2 para el entorno y las integraciones de prueba.
+- JDK 25 para Maven en el host; Docker utiliza su propio JDK/JRE 25.
+- Acceso a dependencias Maven e imágenes en la primera ejecución.
+- Pública RSA externa de Turnos y configuración PostgreSQL. La sincronización requiere REST/Redis de cátedra; el consumo de notificaciones requiere Kafka.
 
-Para mantener los datos actualizados, el servicio contempla mecanismos de sincronización inicial y actualización incremental.
+## Configuración
 
-## Tecnologías
+Preparar un archivo privado `.env` a partir de [.env.example](.env.example). Conservar las credenciales de una base existente. No versionar ni imprimir secretos.
 
-- Java 25 (Amazon Corretto).
-- Spring Boot 4.1.1.
-- Spring Web MVC.
-- Spring Data JPA.
-- PostgreSQL 18.
-- Flyway.
-- Docker Compose.
-- Testcontainers.
-- Maven y JaCoCo.
-- Lombok.
+| Variables | Uso |
+| --- | --- |
+| `CATALOGO_DB_NAME`, `CATALOGO_DB_USER`, `CATALOGO_DB_PASSWORD` | Base, usuario y contraseña de PostgreSQL. |
+| `POSTGRES_PORT`, `CATALOGO_HTTP_PORT` | Puertos del host: 5432 y 8081 por defecto, publicados en loopback. |
+| `CATALOGO_JWT_PUBLIC_KEY_FILE` | Ruta absoluta a la pública RSA X.509 de Turnos, mínimo 2048 bits, legible por UID 10001. Solo lectura en Compose; nunca montar la privada. |
+| `CATALOGO_JWT_ISSUER`, `CATALOGO_JWT_AUDIENCE` | Predeterminados `svc-turnos` y `svc-catalogo-api`. |
+| `CATEDRA_API_BASE_URL`, `CATEDRA_API_TOKEN` | URL REST y JWT técnico de cátedra, sin prefijo `Bearer`. |
+| `REDIS_HOST`, `REDIS_PORT`, `REDIS_USERNAME`, `REDIS_PASSWORD` | Conexión Redis asignada por la integración técnica. |
+| `KAFKA_BOOTSTRAP_SERVERS`, `KAFKA_GROUP_ID`, `KAFKA_CATALOGO_TOPIC` | Brokers, consumer group y topic completo asignados. |
+| `KAFKA_LISTENER_AUTO_STARTUP` | `false` por defecto; habilitar para consumir notificaciones. |
+| `CATALOGO_RECONCILIACIONINICIO_ENABLED` | `true` por defecto; reconciliación al arrancar. |
 
-## Requisitos
+Los valores localhost del ejemplo no representan la infraestructura de cátedra. Formatos, ejecución Java en el host y diagnóstico se especifican en [seguridad y operación](docs/seguridad-y-operacion.md).
 
-- JDK 25.
-- Docker Engine y Docker Compose.
+## Ejecución con Docker Compose
 
-El proyecto incluye Maven Wrapper, por lo que no es
-necesario instalar Maven por separado.
-
-## Ejecución con Docker
-
-La imagen utiliza Java 25 aunque la terminal tenga seleccionado Java 21. La
-construcción usa Maven Wrapper; la imagen final solo contiene JRE 25 y el JAR,
-con usuario sin privilegios (UID 10001). Las bases oficiales están fijadas por
-digest en el Dockerfile. La suite con Testcontainers se ejecuta fuera del build.
-
-1. Preparar `.env` desde `.env.example` y completar la configuración privada.
-   Conservar las credenciales de una base existente: cambiarlas en `.env` no
-   cambia las del volumen PostgreSQL ya inicializado.
-2. Definir `CATALOGO_JWT_PUBLIC_KEY_FILE` como ruta absoluta de un archivo PEM
-   **público** RSA X.509, mínimo 2048 bits, correspondiente al emisor Turnos.
-   Debe ser legible por UID 10001. Se monta solo ese archivo, en modo lectura;
-   nunca montar la clave privada ni guardarla en la imagen/repositorio.
-   `CATALOGO_JWT_PUBLIC_KEY_LOCATION` sigue siendo la opción para Java en el host;
-   dentro del contenedor Compose la fija a `file:/run/keys/turnos-public.pem`.
-3. Configurar REST/Redis/Kafka con los valores asignados por cátedra. Los campos
-   vacíos y localhost del ejemplo no representan infraestructura real.
-4. Preparar una única vez la red bridge compartida `backends-integracion`.
-   Si ya existe, verificarla y reutilizarla sin eliminarla:
+Desde la raíz del repositorio, comprobar la red externa compartida:
 
 ```bash
 docker network inspect backends-integracion --format '{{.Name}} ({{.Driver}})'
-# Solo si la red no existe:
+```
+
+Solo si no existe, crearla una vez:
+
+```bash
 docker network create --driver bridge backends-integracion
 ```
 
-Compose requiere que esta red externa exista antes del arranque; no la crea.
-`svc-catalogo` se conecta a `default` y a `backends-integracion`; PostgreSQL
-permanece únicamente en `default`. Turnos deberá incorporarse a la misma red
-en su cambio correspondiente y usar `http://svc-catalogo:8080`. Desde Ubuntu
-se conserva `http://localhost:8081` con los puertos predeterminados.
+Validar e iniciar:
 
 ```bash
-# Desde la raíz; config --quiet valida sin imprimir secretos.
 docker compose config --quiet
 docker compose up --build -d
 docker compose ps
 docker compose logs --tail=100 svc-catalogo
-curl -i http://localhost:8081/api/catalogo/profesionales
 ```
 
-Después de iniciar los servicios, comprobar los contenedores de la red compartida:
+`svc-catalogo` pertenece a las redes privada y compartida; PostgreSQL solo a la privada. Turnos utiliza `http://svc-catalogo:8080` en esa red. El volumen `catalogo_postgres_data` se conserva al recrear contenedores usando el mismo directorio/nombre de proyecto Compose. Flyway aplica V1/V2 al iniciar.
+
+Sonda HTTP sin JWT, con puerto predeterminado; se espera **401**:
 
 ```bash
-docker network inspect backends-integracion --format '{{range .Containers}}{{println .Name}}{{end}}'
+curl --silent --output /dev/null --write-out '%{http_code}\n' --max-time 5 http://127.0.0.1:8081/api/catalogo/profesionales
 ```
 
-PostgreSQL no debe aparecer en esa lista. La red compartida no reemplaza JWT
-ni garantiza la conectividad con Redis, Kafka o REST de cátedra.
+Esto comprueba HTTP/seguridad, no catálogo actualizado ni conectividad externa. La consulta de datos requiere JWT legítimo de Turnos con `catalogo:read`. La reconciliación inicial es asíncrona; una base vacía no dispone de datos hasta sincronizar correctamente.
 
-El GET sin JWT debe devolver **401**. Para comprobar datos, usar Postman con un
-JWT legítimo de Turnos: RS256, iss=svc-turnos, aud que incluya svc-catalogo-api y
-scope catalogo:read. El diagnóstico requiere catalogo:sync:read; no conceder ese
-permiso a un usuario común solo para la demostración. No imprimir ni exportar
-tokens. No existe un endpoint health público.
-
-| Configuración externa | Uso |
-| --- | --- |
-| CATALOGO_DB_NAME, CATALOGO_DB_USER, CATALOGO_DB_PASSWORD | Misma configuración PostgreSQL existente; volumen persistente conservado |
-| POSTGRES_PORT | Host 5432 por defecto, no cambia a 5433 (usado por Turnos) |
-| CATALOGO_HTTP_PORT | Puerto HTTP del host, 8081 por defecto; contenedor usa 8080 |
-| CATALOGO_JWT_PUBLIC_KEY_FILE | Ruta del archivo público en el host, exclusiva del montaje Compose |
-| CATALOGO_JWT_ISSUER, CATALOGO_JWT_AUDIENCE | svc-turnos y svc-catalogo-api por defecto |
-| CATEDRA_API_BASE_URL, CATEDRA_API_TOKEN | API y JWT **técnico**, independiente del JWT de usuario; token sin prefijo Bearer |
-| REDIS_HOST, REDIS_PORT, REDIS_USERNAME, REDIS_PASSWORD | Redis de cátedra, accesible desde el contenedor |
-| KAFKA_BOOTSTRAP_SERVERS, KAFKA_GROUP_ID, KAFKA_CATALOGO_TOPIC | Valores de la integración asignada |
-| KAFKA_LISTENER_AUTO_STARTUP | false por defecto; true para consumir eventos reales |
-| CATALOGO_RECONCILIACIONINICIO_ENABLED | Propiedad existente catalogo.reconciliacion-inicio.enabled, true por defecto |
-
-Spring se conecta a `jdbc:postgresql://postgres:5432/...` por la red Compose,
-no por el puerto publicado en el host. Espera a que PostgreSQL esté healthy;
-Flyway aplica V1/V2 y Hibernate valida el esquema. No se crean Redis ni Kafka
-locales. El healthcheck de la aplicación verifica **solo HTTP y el rechazo 401**,
-no frescura del catálogo, salud de Kafka o éxito de reconciliación.
-
-La reconciliación corre en segundo plano: sin URL/token REST o Redis accesible,
-falla de forma observable en logs y conserva la copia previa; el servidor HTTP
-puede seguir funcionando. En base vacía no hay datos reales para mostrar hasta
-completar la sincronización. Solo para una prueba local sin integración puede
-ponerse CATALOGO_RECONCILIACIONINICIO_ENABLED=false; no presentarla como catálogo
-sincronizado. Esta rama no incorpora la corrección diagnóstica del issue #38.
-
-Para reiniciar y detener **sin borrar la base**:
+Detener conservando los datos:
 
 ```bash
-docker compose restart
 docker compose stop
-# Para iniciar de nuevo los contenedores detenidos:
-docker compose up -d
 ```
 
-No ejecutar down -v ni comandos prune. Las políticas unless-stopped permiten
-reiniciar contenedores conservando el volumen. Usar el mismo directorio/nombre
-de proyecto Compose para reutilizarlo. Si cambia un puerto ocupado, ajustar
-POSTGRES_PORT o CATALOGO_HTTP_PORT, sin tocar los de otros proyectos.
+Para iniciar los contenedores detenidos: `docker compose start`. Para aplicar cambios de configuración: `docker compose up -d`. No utilizar `down -v` ni limpiar volúmenes.
 
-**Conectividad y problemas frecuentes:** localhost dentro del contenedor es el
-propio contenedor. Para cátedra usar sus direcciones reales por ZeroTier; el host
-conectado no garantiza que el bridge Docker tenga rutas, DNS y permisos de
-forwarding equivalentes. Comprobar también los advertised listeners de Kafka.
-No modificar el firewall o usar network_mode:host a ciegas. Si falta el PEM,
-Compose falla; si es inválido o ilegible, Spring no arranca. Si se ejecuta Java en
-el host, detener primero svc-catalogo para no competir por HTTP/BD y configurar
-sus variables del host por separado. Antes de compartir logs, revisar que no
-contengan información privada; no publicar la salida completa de compose config.
+## Pruebas
 
-## Ejecución con Java en el host
-
-Para ejecutar el servicio por primera vez, seguir las
-instrucciones de la sección **Persistencia local**.
-
-Una vez configurada la base de datos y cargadas las variables
-de entorno, iniciar la aplicación con:
+Con JDK 25 y Docker disponible, ejecutar la suite con Testcontainers excluyendo la activación accidental de pruebas externas por credenciales heredadas:
 
 ```bash
-./mvnw spring-boot:run
+java -version
+env -u CATEDRA_API_TOKEN -u REDIS_PASSWORD ./mvnw clean verify
 ```
 
-La aplicación se inicia en el puerto `8080`.
-
-Para detenerla, utilizar `Ctrl + C`.
-
-## Compilación y pruebas
-
-Para ejecutar las pruebas:
+Sin esas variables definidas, el comando habitual es `./mvnw clean verify`. Ejecución dirigida de Kafka y PostgreSQL aislados:
 
 ```bash
-./mvnw test
+env -u CATEDRA_API_TOKEN -u REDIS_PASSWORD ./mvnw -Dtest=CatalogoKafkaConsumerIntegrationTest test
 ```
 
-Para compilar y generar el archivo JAR:
+Véanse [pruebas e informes](docs/pruebas.md) para distinguir simuladores de integraciones reales.
 
-```bash
-./mvnw package
-```
+## Documentación técnica
 
-Los archivos generados se guardan en `target/`.
-
-En Windows, utilizar `mvnw.cmd` en lugar de `./mvnw`.
-
-
-## Persistencia local
-
-El servicio utiliza PostgreSQL 18 para mantener una copia local
-del catálogo y registrar el estado de sincronización.
-
-La persistencia se implementa mediante Spring Data JPA y las
-migraciones de la base de datos se gestionan con Flyway.
-
-### Requisitos adicionales
-
-- Docker Engine y Docker Compose.
-- JDK 25.
-
-### Configuración de la base de datos
-
-1. Crear el archivo `.env` a partir del ejemplo:
-
-   ```bash
-   cp .env.example .env
-   ```
-
-2. Editar `.env` y configurar una contraseña en
-   `CATALOGO_DB_PASSWORD`.
-
-   El archivo `.env` está excluido de Git y no debe subirse
-   al repositorio.
-
-3. Configurar también CATALOGO_JWT_PUBLIC_KEY_FILE según la sección Docker
-   (el Compose completo valida ese montaje), e iniciar solamente PostgreSQL:
-
-   ```bash
-   docker compose up -d postgres
-   ```
-
-4. Comprobar el estado del contenedor:
-
-   ```bash
-   docker compose ps
-   ```
-
-   El servicio `postgres` debe aparecer como `healthy`.
-
-### Ejecución de la aplicación
-
-Cargar las variables de entorno en la terminal:
-
-```bash
-set -a
-source .env
-set +a
-```
-
-Iniciar Spring Boot:
-
-```bash
-./mvnw spring-boot:run
-```
-
-Flyway ejecutará automáticamente las migraciones pendientes
-al iniciar la aplicación.
-
-### Pruebas
-
-Para ejecutar todas las pruebas y generar el informe de cobertura:
-
-```bash
-./mvnw clean verify
-```
-
-Las pruebas de integración utilizan Testcontainers para iniciar
-una instancia temporal de PostgreSQL. Por lo tanto, requieren
-Docker disponible, pero no necesitan utilizar la base de datos
-local del archivo `compose.yaml`.
-
-### Sincronización del catálogo
-
-La persistencia contempla:
-
-- Categorías.
-- Profesionales.
-- Horarios semanales.
-- Estado de sincronización y versión aplicada.
-
-El reemplazo de un snapshot se realiza dentro de una transacción,
-respetando las relaciones entre las entidades.
-
-Si una operación falla, la transacción revierte sus cambios.
-Las versiones iguales o anteriores a la última aplicada se ignoran.
-
-## Arquitectura
-
-El proyecto seguirá una arquitectura hexagonal, con separación entre dominio, aplicación e infraestructura, según la estructura de referencia utilizada en la cátedra.
-
-Cada funcionalidad se organizará de forma independiente, procurando mantener la lógica de negocio desacoplada de las tecnologías externas.
+- [Arquitectura y límites](docs/arquitectura.md).
+- [Contratos REST](docs/contratos.md).
+- [Modelo de datos](docs/modelo-datos.md).
+- [Sincronización, Kafka y recuperación](docs/sincronizacion-y-kafka.md).
+- [Seguridad, configuración y operación](docs/seguridad-y-operacion.md).
+- [Pruebas y alcance de verificación](docs/pruebas.md).
