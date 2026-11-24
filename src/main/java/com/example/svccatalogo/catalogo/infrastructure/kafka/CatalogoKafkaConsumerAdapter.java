@@ -13,9 +13,13 @@ import org.apache.kafka.clients.consumer.ConsumerRecord;
 import java.time.Instant;
 import java.time.format.DateTimeParseException;
 import java.util.Objects;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @Component
 public class CatalogoKafkaConsumerAdapter {
+
+    private static final Logger LOG = LoggerFactory.getLogger(CatalogoKafkaConsumerAdapter.class);
 
     private final ProcesarNotificacionCatalogoUseCase procesarPort;
     private final JsonMapper jsonMapper;
@@ -48,6 +52,8 @@ public class CatalogoKafkaConsumerAdapter {
         procesarPort.procesar(notificacion);
 
         acknowledgment.acknowledge();
+        LOG.info("Notificacion de catalogo procesada: particion={}, offset={}, version={}",
+                registro.partition(), registro.offset(), notificacion.nuevaVersion());
     }
 
     private NotificacionCatalogo convertirNotificacion(String mensaje) {
