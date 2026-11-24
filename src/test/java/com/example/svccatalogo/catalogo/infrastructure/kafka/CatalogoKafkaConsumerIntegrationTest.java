@@ -29,6 +29,9 @@ import org.springframework.kafka.listener.MessageListenerContainer;
 import org.springframework.kafka.test.utils.ContainerTestUtils;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
+import org.springframework.dao.TransientDataAccessResourceException;
+import com.example.svccatalogo.catalogo.infrastructure.persistence.adapter.CatalogoIncrementalPersistenceAdapter;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.kafka.KafkaContainer;
@@ -39,6 +42,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.awaitility.Awaitility.await;
 import static org.junit.jupiter.api.Assertions.*;
@@ -47,6 +52,8 @@ import static org.mockito.Mockito.*;
 @ContextConfiguration(initializers = JwtTestContextInitializer.class)
 @SpringBootTest(properties = {
         "catalogo.reconciliacion-inicio.enabled=false",
+        "catalogo.kafka.reintentos.intervalo-ms=500",
+        "catalogo.kafka.reintentos.maximos=10",
         "catalogo.kafka.topic=catalogo-prueba",
         "spring.kafka.consumer.group-id=catalogo-integracion-test",
         "spring.kafka.consumer.auto-offset-reset=earliest",
@@ -84,6 +91,9 @@ class CatalogoKafkaConsumerIntegrationTest {
 
     @Autowired
     private JdbcTemplate jdbcTemplate;
+
+    @MockitoSpyBean
+    private CatalogoIncrementalPersistenceAdapter persistencia;
 
     @BeforeEach
     void prepararBaseDeDatos() {
@@ -158,6 +168,33 @@ class CatalogoKafkaConsumerIntegrationTest {
 
     @Test
     @Order(3)
+    @DirtiesContext
+    void recuperaPersistenciaTransitoriaSinArranqueManualDelListener() throws Exception {
+        configurarIncrementos(6L);
+        var disponible = new AtomicBoolean();
+        var falloObservado = new CountDownLatch(1);
+        doAnswer(invocacion -> {
+            if (!disponible.get()) {
+                falloObservado.countDown();
+                throw new TransientDataAccessResourceException("Fallo simulado de acceso a PostgreSQL");
+            }
+            return invocacion.callRealMethod();
+        }).when(persistencia).aplicarVersion(anyLong(), anyLong(), anyList(), anyList(), anyList());
+        long offset = publicar("persistencia-recuperable", 6L);
+        assertTrue(falloObservado.await(10, TimeUnit.SECONDS));
+        assertOffsetSinConfirmar(offset);
+        assertEquals(5L, versionAplicada());
+        assertEquals(0L, cantidadEventos());
+        disponible.set(true);
+        esperarConfirmacion(offset);
+        assertTrue(contenedor().isRunning());
+        assertEquals(6L, versionAplicada());
+        assertEquals(1L, cantidadEventos());
+        assertEquals(1L, jdbcTemplate.queryForObject("SELECT COUNT(*) FROM categorias", Long.class));
+    }
+
+    @Test
+    @Order(4)
     @DirtiesContext(methodMode = DirtiesContext.MethodMode.AFTER_METHOD)
     void debeDetenerConsumidorAnteJsonInvalidoSinConfirmarOffset() throws Exception {
         long offset = kafkaTemplate.send(TOPIC, "9", "esto no es JSON")
