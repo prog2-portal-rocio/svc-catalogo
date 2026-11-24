@@ -61,6 +61,14 @@ class ReconciliacionCatalogoInicioIntegrationTest {
 
     @Test
     void applicationReadyYReconciliacionPeriodicaRecuperanSinKafka() {
+        verificarArranqueDesdeSnapshot();
+        recuperarCambioSinNotificacionKafka();
+        verificarRecuperacionRedisSinReescribirCatalogo();
+        verificarRecuperacionRest();
+        verificarRollbackYRecuperacionPostgreSQL();
+    }
+
+    private void verificarArranqueDesdeSnapshot() {
         await().atMost(15, TimeUnit.SECONDS).untilAsserted(() ->
                 assertEquals(7L, jdbc.queryForObject(
                         "SELECT applied_version FROM estado_sincronizacion WHERE id = 1", Long.class)));
@@ -69,6 +77,9 @@ class ReconciliacionCatalogoInicioIntegrationTest {
         assertEquals("Categoria inicial", jdbc.queryForObject("SELECT name FROM categorias", String.class));
         assertEquals(0, jdbc.queryForObject("SELECT COUNT(*) FROM eventos_catalogo_procesados", Integer.class));
         verify(remoto).obtenerSnapshot();
+    }
+
+    private void recuperarCambioSinNotificacionKafka() {
         when(redis.obtenerVersionMasAntiguaDisponible()).thenReturn(7L);
         when(redis.obtenerCambios(8L)).thenReturn(Optional.of(
                 new CambiosCatalogo(8L, List.of(1L), List.of(), List.of())));
@@ -80,6 +91,9 @@ class ReconciliacionCatalogoInicioIntegrationTest {
             assertEquals("Cambio sin Kafka", jdbc.queryForObject("SELECT name FROM categorias", String.class));
         });
         assertEquals(0, jdbc.queryForObject("SELECT COUNT(*) FROM eventos_catalogo_procesados", Integer.class));
+    }
+
+    private void verificarRecuperacionRedisSinReescribirCatalogo() {
         var fechaAplicada = jdbc.queryForObject("SELECT applied_at FROM estado_sincronizacion", Timestamp.class);
         doThrow(new RedisConnectionFailureException("Fallo transitorio simulado"))
                 .when(redis).obtenerVersionActual();
@@ -92,6 +106,9 @@ class ReconciliacionCatalogoInicioIntegrationTest {
                 assertEquals("SUCCESS", jdbc.queryForObject("SELECT phase FROM estado_sincronizacion", String.class)));
         // Coincidencia de versiones: no reescribe catálogo ni la fecha de su aplicación.
         assertEquals(fechaAplicada, jdbc.queryForObject("SELECT applied_at FROM estado_sincronizacion", Timestamp.class));
+    }
+
+    private void verificarRecuperacionRest() {
         doThrow(new ResourceAccessException("REST temporalmente inaccesible"))
                 .when(remoto).obtenerSnapshot();
         doReturn(9L).when(redis).obtenerVersionActual();
@@ -103,7 +120,10 @@ class ReconciliacionCatalogoInicioIntegrationTest {
                 .when(remoto).obtenerSnapshot();
         await().atMost(10, TimeUnit.SECONDS).untilAsserted(() ->
                 assertEquals(9L, jdbc.queryForObject("SELECT applied_version FROM estado_sincronizacion", Long.class)));
-        // Error dentro de PostgreSQL: el snapshot viola una FK, y todo el reemplazo debe revertirse.
+    }
+
+    private void verificarRollbackYRecuperacionPostgreSQL() {
+        // Error dentro de PostgreSQL: el snapshot viola una FK; el reemplazo completo debe revertirse.
         doReturn(new SnapshotCatalogo(10L, List.of(new Categoria(1L, "No debe persistir", null, true, null, null)),
                 List.of(new Profesional(10L, 999L, "Ana", "Perez", true, null, null)),
                 List.of())).when(remoto).obtenerSnapshot();
